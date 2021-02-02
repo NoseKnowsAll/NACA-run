@@ -1,0 +1,39 @@
+# Specific executables
+timing2d
+
+# Meshes
+*.h5
+
+# Datafiles
+*.dat
+output.txt
+
+# Any results from run
+./run/results/*
+
+# Emacs working files
+*~
+
+# Prerequisites
+*.d
+
+# Compiled object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Compiled libraries
+*.so
+*.dll
+*.lib
+*.a
+*.la
+
+# CMake files
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+_deps
