@@ -4,117 +4,106 @@
 #include <iostream>
 #include <sstream>
 
-const std::string suffix   = "_v1_p3";
+const std::string suffix   = "_v1";
+const int         order    = 3;
+const int         refine   = 0;
 const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
-const std::string meshname = "naca" + suffix;
+const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/";
-const double      Re       = 3e6;
+const double      hwing    = 0.05; // Make sure this is updated with correct value from naca_vX.geo
+const double      Re       = 9.0*order/(hwing*(1<<refine)); // Because h/p = 10/Re sets safe h for boundary layer, this should be safe Re
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 1e-4;
 const double      Tfinal   = 0.0; // define as 0 to use nsteps variable instead
 const int         nsteps   = 3;   // only used if Tfinal == 0.0
 const int         presteps = 10;
-const int         step0    = 0;
+const int         step0    = 0;   // set to 1 if you have precomputed solution
 const int         writeint = 10;
+const int         nstages  = 3;
+
 const double      linerror = 1e-4;
 const double      nlerror  = 1e-6;
 
 int main(int argc, char **argv) {
   
   MPI::Init(argc, argv);
-  
+
+  // Initialize data and physics of N-S simulation according to our parameters
   mesh msh;
   data d;
   phys p;
   
   int np = MPI::COMM_WORLD.Get_size();
-  int nstages = 2;
-  int order = 2*nstages-1;
   msh.readfile_mpi(meshdir+meshname, np);
   
   dginit(msh, d);
   
   double Reyn = Re;
   int wall = std::isfinite(Reyn) ? 2 : 3;
+  dgprintf("Re = %f\n", Re);
   dgprintf("Wall boundary condition: %d\n", wall);
   
   double AoA = AoAdeg*M_PI/180.0;
   using dg::physinit::FarFieldQty;
   dg::physinit::navierstokes(
       msh,
-      {wall, 1},                // bndcnds
-      {Re, 0.72, 0.0, 1.0, 0.0},// pars
+      {wall, 1},                // boundary conditions
+      {Re, 0.72, 0.0, 1.0, 0.0},// pars: Re, Pr, C11 interior, C11 boundary, hscale with C11
       1.0,                      // far field density
       {cos(AoA), sin(AoA)},     // far field velocity
       FarFieldQty::Mach(M0),    // far field mach
       &p);
   p.viscous = true;
 
+  // Initialize solver parameters
   int maxiter = 120;
   int restart = 30;
   auto linsolver = LinearSolverOptions::gmres("i", linerror, maxiter, restart);
   auto newton = NewtonOptions(linsolver, nlerror);
   
-  // Set up the solution variable (add extra component into u for viscosity)
-  darray u, u0, u1(msh.ns, 1, msh.nt);
-  dgfreestream(msh, p, u0);
-  u1 = 0.0;
-  u.realloc(msh.ns, u0.size(1) + 1, msh.nt);
-  dgconcat(u0, u1, u);
-  
-  // initial shock sensor
-  double eps0 = 0.65;
-  // At first, always add viscosity 
-  sensor av(msh, d, {eps0,eps0,-4,1}, 0, u0.size(1));
+  // Set up the solution variable
+  darray u;
+  dgfreestream(msh, p, u);
   
   // Initial steps to reduce transients
+  const irk_scheme *rk11 = dirk_coeffs(1, 1); // Backward Euler
   if (step0 == 0) {
-    av.mksensor(u);
     dgprintf(" >>> Initial Steps <<<\n");
     for (int i=0; i<presteps; ++i) {
       dgprintf(" >>> Initial step 1.%d <<<\n", i);
-      dgiirktime(dgnsshk, u, msh, d, p, dt/100, 1, newton);
+      dgirktime(dgnavierstokes, u, msh, d, p, dt/100, 1, rk11, newton, "");
     }
     for (int i=0; i<presteps; ++i) {
       dgprintf(" >>> Initial step 2.%d <<<\n", i);
-      dgiirktime(dgnsshk, u, msh, d, p, dt/50, 1, newton);
+      dgirktime(dgnavierstokes, u, msh, d, p, dt/50, 1, rk11, newton, "");
     }
     for (int i=0; i<presteps; ++i) {
       dgprintf(" >>> Initial step 3.%d <<<\n", i);
-      dgiirktime(dgnsshk, u, msh, d, p, dt/20, 1, newton);
+      dgirktime(dgnavierstokes, u, msh, d, p, dt/20, 1, rk11, newton, "");
     }
     for (int i=0; i<presteps; ++i) {
       dgprintf(" >>> Initial step 4.%d <<<\n", i);
-      dgiirktime(dgnsshk, u, msh, d, p, dt/10, 1, newton);
+      dgirktime(dgnavierstokes, u, msh, d, p, dt/10, 1, rk11, newton, "");
     }
     fwritesolution(pre + "sol" + fill_int_to_string(1, 5, '0') + ".dat", u, msh);
   } else {
-    // No initial steps. Load from file instead
+    // Don't compute initial steps. Load soln from file instead
     dgprintf(" >>> Checkpointing from %d <<<\n", step0);
     freadsolution(pre + "sol" + fill_int_to_string(step0, 5, '0') + ".dat", u, msh);
     
   }
-  
-  // Sensor parameters for the actual time steps
-  // [0] = max viscosity = eps_0 (multiplied by h/p in the code)
-  // [1] = "0" viscosity
-  // [2] = log_10(average indicator) = s_0
-  // [3] = log_10(half-distance) = kappa
-  
-  //av.pars = {.75,0,-4,1}; // explodes for p = 3
-  av.pars = {.5,0,-4.5,1}; //almost works for p = 3
-  //av.pars = {.5,0,-5.5,1}; // Testing for p = 4
     
   // Main loop
-  int actual_steps = ( Tfinal == 0.0 ? nsteps : int(round(Tfinal / dt)) );
-  for (int i=step0+1; i<=actual_steps; i++) {
+  const irk_scheme *dirk = dirk_coeffs(nstages,1); // L-stable, order == stages, DIRK
+  int final_step = ( Tfinal == 0.0 ? step0+nsteps : int(round(Tfinal / dt)) );
+  for (int i=step0+1; i<=final_step; i++) {
     dgprintf("\n >>> Step %5d <<< \n", i);
-    av.mksensor(u);
-    dgiirktime(dgnsshk, u, msh, d, p, dt, order, newton);
+    dgirktime(dgnavierstokes, u, msh, d, p, dt, 1, dirk, newton, "");
     if (i % writeint == 0)
       fwritesolution(pre + "sol" + fill_int_to_string(i, 5, '0') + ".dat", u, msh);
   }
+  fwritesolution(pre + "sol" + fill_int_to_string(final_step, 5, '0') + ".dat", u, msh);
   
   MPI::Finalize();
 }
