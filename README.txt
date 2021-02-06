@@ -8,8 +8,7 @@ Largely research work. A sequence of tests and scripts for 3DG and implicit time
    c) Run scripts/mk_naca_vX_msh.m in ml3dg with specific p to create single-threaded meshes of given geo file of order p and specified refinement level
    
 2) Preprocess the mesh for run of N number of processors
-   a) Copy over final created single-threaded meshes from ./meshes/ to ./run/partitioned/
-   b) In ./run/, run: python preprocess.py -n N -s "suffix" -ns "newSuffix" -d "directoryToFindMesh"
+   a) In ./run/, run: python preprocess.py -n N -s "suffix" -os "outputSuffix" -d "meshDirectory" -od "outputDirectory"
    
 3) Run actual job to simulate flow on partitioned mesh on N processors
    a) Run needs to have an explicit dt of approximately 10^{-7} so that an implicit dt=10^{-4} will actually be competitive
