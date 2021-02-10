@@ -4,13 +4,14 @@
 #include <iostream>
 #include <sstream>
 
-const std::string suffix   = "_v1";
+const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12;
 const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/";
-const double      hwing    = 0.05; // Make sure this is updated with correct value from naca_vX.geo
+// TODO: Technically hLE is a bit smaller than hwing, but vast majority of BL elements will be based on hwing size. Should we use hwing?
+const double      hwing    = 0.049; // Make sure this is updated with correct value from naca_vX.geo
 const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/Re sets safe h for boundary layer, this should be safe Re
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
