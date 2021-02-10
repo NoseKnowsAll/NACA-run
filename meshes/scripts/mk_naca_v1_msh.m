@@ -1,8 +1,7 @@
 curr_dir = "~/scratch/2021/naca/meshes/scripts/";
 msh_dir  = curr_dir+"../";
 p = 3
-refinements = [0, 2, 4, 8]
-
+refinements = [0, 2, 4, 8, 12]
 msh = rungmsh2msh(msh_dir+"naca_v1.geo", "-order "+string(p));
 mshp = mshchangep(msh, p);
 for refine = refinements
