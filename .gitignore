@@ -1,5 +1,6 @@
 # Specific executables
 timing2d
+benchmark_dgops
 
 # Meshes
 *.h5
@@ -8,6 +9,7 @@ timing2d
 *.dat
 output.txt
 input.txt
+benchmark.txt
 
 # Any results from run
 ./run/results/*
