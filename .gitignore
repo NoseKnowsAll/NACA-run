@@ -1,15 +1,14 @@
 # Specific executables
 timing2d
 benchmark_dgops
+sweep_dt
 
 # Meshes
 *.h5
 
 # Datafiles
 *.dat
-output.txt
-input.txt
-benchmark.txt
+*.out
 
 # Any results from run
 ./run/results/*

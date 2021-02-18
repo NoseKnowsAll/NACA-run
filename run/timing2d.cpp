@@ -19,7 +19,7 @@ const double      dt       = 1e-4;
 const double      Tfinal   = 0.0; // define as 0 to use nsteps variable instead
 const int         nsteps   = 3;   // only used if Tfinal == 0.0
 const int         presteps = 10;
-const int         step0    = 0;   // set to 1 if you have precomputed solution
+const int         step0    = 1;   // set to 1 if you have precomputed solution
 const int         writeint = 10;
 const int         nstages  = 3;
 
@@ -43,7 +43,6 @@ int main(int argc, char **argv) {
   double Reyn = Re;
   int wall = std::isfinite(Reyn) ? 2 : 3;
   dgprintf("Re = %f\n", Re);
-  dgprintf("Wall boundary condition: %d\n", wall);
   
   double AoA = AoAdeg*M_PI/180.0;
   using dg::physinit::FarFieldQty;
@@ -60,7 +59,7 @@ int main(int argc, char **argv) {
   // Initialize solver parameters
   int maxiter = 120;
   int restart = 30;
-  auto linsolver = LinearSolverOptions::gmres("i", linerror, maxiter, restart);
+  auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart); // j => Jacobi, i => ILU
   auto newton = NewtonOptions(linsolver, nlerror);
   
   // Set up the solution variable

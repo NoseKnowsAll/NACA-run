@@ -9,3 +9,4 @@ include(${ROOT3DG}/3dg.cmake)
 
 dg_app_mpi(timing2d timing2d.cpp)
 dg_app_mpi(benchmark_dgops benchmark_dgops.cpp)
+dg_app_mpi(sweep_dt sweep_dt.cpp)

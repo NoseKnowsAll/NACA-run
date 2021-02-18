@@ -1,5 +1,4 @@
 #include "dg.h"
-#include "dgavtools.h"
 #include <ios>
 #include <iostream>
 #include <sstream>
@@ -49,7 +48,6 @@ int main(int argc, char **argv) {
   double Reyn = Re;
   int wall = std::isfinite(Reyn) ? 2 : 3;
   dgprintf("Re = %f\n", Re);
-  dgprintf("Wall boundary condition: %d\n", wall);
   
   double AoA = AoAdeg*M_PI/180.0;
   using dg::physinit::FarFieldQty;
@@ -66,7 +64,7 @@ int main(int argc, char **argv) {
   // Initialize solver parameters
   int maxiter = 120;
   int restart = 30;
-  auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart); // j == Jacobi, i == ILU
+  auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart); // j => Jacobi, i => ILU
   auto newton = NewtonOptions(linsolver, nlerror);
   
   // Set up the solution variable
