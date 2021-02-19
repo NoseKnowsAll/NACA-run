@@ -6,7 +6,7 @@
 const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12;
-const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
+const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/";
 // TODO: Technically hLE is a bit smaller than hwing, but vast majority of BL elements will be based on hwing size. Should we use hwing?
@@ -31,16 +31,28 @@ enum DGOperations {
 		   mass_inv     = 4
 };
 
+void linassemble(jacarray& Ddrdu,jacarray &Odrdu, darray& r, appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);
+
+double gettime() {
+  int np;
+  MPI_Comm_size(MPI_COMM_WORLD, &np);
+  if (np > 1)
+    return MPI_Wtime();
+  else
+    return threedg::timer();
+}
+
 int main(int argc, char **argv) {
   
-  MPI::Init(argc, argv);
+  MPI_Init(&argc, &argv);
 
   // Initialize data and physics of N-S simulation according to our parameters
   mesh msh;
   data d;
   phys p;
-  
-  int np = MPI::COMM_WORLD.Get_size();
+
+  int np;
+  MPI_Comm_size(MPI_COMM_WORLD, &np);
   msh.readfile_mpi(meshdir+meshname, np);
   
   dginit(msh, d);
@@ -72,10 +84,12 @@ int main(int argc, char **argv) {
   dgfreestream(msh, p, u);
   // Allocate space for internal arrays
   int N = u.size(1);
-  darray r(d.ns, N, msh.nt);
-  darray du(d.ns, N, msh.nt);
-  jacarray Ddrdu(N*d.ns, N*d.ns, msh.nt);
-  jacarray Odrdu(N*d.nes, N*d.ns, msh.nf, msh.nt);
+  int nBI  = msh.nBI();
+  int nBIN = msh.nBIN();
+  darray r(d.ns, N, nBIN);
+  darray du(d.ns, N, nBIN);
+  jacarray Ddrdu(N*d.ns, N*d.ns, nBI);
+  jacarray Odrdu(N*d.nes, N*d.ns, msh.nf, nBI);
   jacarray NULLARR;
 						    
   // Initial steps to reduce transients
@@ -111,13 +125,13 @@ int main(int argc, char **argv) {
     DGOperations to_time = static_cast<DGOperations>(test);
     double min_time = 1.0/0.0;
     for (int i = 0; i < nsteps; i++) {
-      set_timer();
+      double inittime = gettime();
       switch (to_time) {
       case jac_assembly:
-	dgassemble(dgnavierstokes, u, r, Ddrdu, Odrdu, msh, d, p);
+	linassemble(Ddrdu,Odrdu, r, dgnavierstokes,msh,d,p, u,dt);
 	break;
       case res_eval:
-	dgassemble(dgnavierstokes, u, r, NULLARR, NULLARR, msh, d, p);
+	linassemble(NULLARR,NULLARR, r, dgnavierstokes,msh,d,p, u,dt);
 	break;
       case mat_vec:
 	matvec(msh, d, msh.porder, Ddrdu, Odrdu, r, du);
@@ -126,12 +140,30 @@ int main(int argc, char **argv) {
 	dgmassinv(r, msh, d);
 	break;
       }
-      double time = get_timer();
+      double time = gettime() - inittime;
       if (time < min_time)
 	min_time = time;
     }
-    printf("%d: %10.5f\n", test, min_time);
+    dgprintf("%d: %10.5f\n", test, min_time);
   }
   
-  MPI::Finalize();
+  MPI_Finalize();
 }
+
+// Assemble Ddrdu,Odrdu to contain M-dt*J information. Assemble r as well
+void linassemble(jacarray& Ddrdu,jacarray &Odrdu, darray& r, appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt) {
+  int np;
+  MPI_Comm_size(MPI_COMM_WORLD, &np);
+  if (np > 1) {
+    pararray pr(msh, r);
+    mpi::parassembleB(a,u,r, Ddrdu, Odrdu, msh, d, p);
+    pr.communicate();
+    mpi::parassembleI(a,u,r, Ddrdu, Odrdu, msh, d, p);
+    mpi::bdf_add_diag_mass(Ddrdu, Odrdu, dt, msh, d);
+    pr.waitforall();
+  } else {
+    dgassemble(a, u, r, Ddrdu, Odrdu, msh, d, p);
+    serial::bdf_add_diag_mass(Ddrdu, Odrdu, dt, msh, d);
+  }
+}
+

@@ -7,7 +7,8 @@
 const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12;
-const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
+//const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
+const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/";
 // TODO: Technically hLE is a bit smaller than hwing, but vast majority of BL elements will be based on hwing size. Should we use hwing?
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
   p.viscous = true;
 
   // Initialize solver parameters
-  int maxiter = 120;
+  int maxiter = 200;
   int restart = 30;
   auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart); // j => Jacobi, i => ILU
   auto newton = NewtonOptions(linsolver, nlerror);
