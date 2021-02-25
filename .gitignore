@@ -9,6 +9,7 @@ sweep_dt
 # Datafiles
 *.dat
 *.out
+*.mat
 
 # Any results from run
 ./run/results/*
