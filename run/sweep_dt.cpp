@@ -72,7 +72,8 @@ int main(int argc, char **argv) {
   // Initialize solver parameters
   int maxiter = 200;
   int restart = 30;
-  auto linsolver = LinearSolverOptions::gmres("i", linerror, maxiter, restart); // j => Jacobi, i => ILU, d => direct
+  // j => Jacobi, i => ILU, d => direct, b => boundary layer. See: dgitprecond.h
+  auto linsolver = LinearSolverOptions::gmres("b", linerror, maxiter, restart); 
   auto newton = NewtonOptions(linsolver, nlerror);
   
   // Set up the solution variable
