@@ -10,6 +10,8 @@ sweep_dt
 *.dat
 *.out
 *.mat
+*.png
+*.mp4
 
 # Emacs working files
 *~
