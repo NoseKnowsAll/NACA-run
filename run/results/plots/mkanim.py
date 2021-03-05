@@ -47,8 +47,8 @@ def init():
   img.set_cmap("jet")
   plt.axis("equal")
   plt.axis(a)
-  min_quant = 0
-  max_quant = 2
+  min_quant = 0.9
+  max_quant = 1.1
   plt.clim(min_quant, max_quant)
 
 # Saves the image to file
