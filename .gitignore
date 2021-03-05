@@ -11,9 +11,6 @@ sweep_dt
 *.out
 *.mat
 
-# Any results from run
-./run/results/*
-
 # Emacs working files
 *~
 
