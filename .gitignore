@@ -1,6 +1,7 @@
 # Specific executables
 timing2d
 benchmark_dgops
+eigenvalue
 sweep_dt
 
 # Meshes
