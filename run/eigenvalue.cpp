@@ -79,12 +79,12 @@ int main(int argc, char **argv) {
   int N = u.size(1);
   int nBI  = msh.nBI();  // == nt if np==1
   int nBIN = msh.nBIN(); // == nt if np==1
-  darray r(d.ns, N, nBIN);
-  darray k(d.ns, N, nBIN);
+  darray r(d.ns, N, nBI);
+  darray k(d.ns, N, nBI);
   jacarray Ddrdu(N*d.ns,  N*d.ns, nBI);
-  jacarray Odrdu(N*d.nes, N*d.ns, msh.nf, nBI);
+  jacarray Odrdu(N*d.nes, N*d.ns, msh.nf, nBIN);
   jacarray DMat (N*d.ns,  N*d.ns, nBI);
-  jacarray OMat (N*d.nes, N*d.ns, msh.nf, nBI);
+  jacarray OMat (N*d.nes, N*d.ns, msh.nf, nBIN);
   
   // Don't compute initial steps. Load soln from file instead
   dgprintf(" >>> Checkpointing from %d <<<\n", step0);
@@ -101,10 +101,36 @@ int main(int argc, char **argv) {
     linassemble(Ddrdu,Odrdu, DMat,OMat, r, a,msh,d,p, u,dt);
     dgprintf("%7.1e %7.3f ", dt, gettime() - timer0);
       
+    // MATLAB computation of eigenvalues: Print Dmat,OMat to file
+    // TODO: Determine exactly which matrix to print to file
+    /* // M-dt*J
+    DMat = Ddrdu;
+    OMat = Odrdu;
+    */
+    
+    /* // Diagonal matrix with increasing values along the diagonal
+    DMat = 0.0;
+    OMat = 0.0;
+    for (int it = 0; it < nBI; ++it) {
+      for (int ic = 0; ic < DMat.size(1); ++ic) {
+	DMat(ic,ic,it) = it*DMat.size(1) + ic;
+      }
+    }
+    */
+    
+    /* // DMat == Mass
+    DMat = 0.0;
+    OMat = 0.0;
+    serial::bdf_add_diag_mass(DMat, OMat, dt, msh, d);
+    */
+    
+    fwritejac(msh, d, N, DMat, OMat, pre+"../");
+    return 0;
+
     // Compute the max eigenvalue of matrix using power iteration
     timer0 = gettime();
-    //DMat = Ddrdu;
-    //OMat = Odrdu;
+    k = 0.0;
+    r = 1.0;
     double lambda0 = 6.0;
     auto powerit_stats = power_iteration(DMat, OMat, r, k, msh, d, lambda0, 2000, true);
     double lambda = powerit_stats.first;
@@ -177,7 +203,7 @@ std::pair<double, int> power_iteration(const jacarray& DMat,const jacarray& OMat
     
     if (verbose)
       dgprintf("%4d: %7.3f\n", iter, lambda);
-    if (abs(lambda - lambda0) < 1e-8 * abs(lambda))
+    if (abs(lambda - lambda0) < 1e-6 * abs(lambda))
       return {lambda, iter};
 
     // Update variables for next iteration
