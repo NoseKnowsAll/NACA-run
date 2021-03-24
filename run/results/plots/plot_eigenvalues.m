@@ -9,7 +9,13 @@ mass_dir = results_dir+"mass/";
 
 msh = h5freadstruct(msh_file);
 J_nonbl = init_jac_nonbl(msh, results_dir, bl_file);
+%figure(1);
+%spy(J_nonbl);
 Ms = freadarray(mass_dir+"Dv.mat");
+%M_total = freadjac(mass_dir);
+%figure(2);
+%spy(M_total);
+%return;
 explore_eigenvalues(J_nonbl, Ms, msh_name);
 
 % Evaluate ( M\otimes I ) \ J * x
@@ -19,7 +25,7 @@ function y = eval_matrix(J, M, x)
   nt = size(M,3);
   y2 = reshape(y1, nlocal, nt);
   for it = 1:nt
-    %y2(:,it) = M(:,:,it)\y2(:,it);
+    y2(:,it) = M(:,:,it)\y2(:,it);
   end
   y = reshape(y2, nlocal*nt,1);
 end
@@ -77,8 +83,8 @@ function J_nonbl = init_jac_nonbl(msh, dir, bl_file)
     end
   end
 
-  Mi = double([Dij(1,:); Oij(1,:)])+1; % MATLAB is 1-indexed
-  Mj = double([Dij(2,:); Oij(2,:)])+1; % MATLAB is 1-indexed
+  Mi = double([Dij(1,:).'; Oij(1,:).'])+1; % MATLAB is 1-indexed
+  Mj = double([Dij(2,:).'; Oij(2,:).'])+1; % MATLAB is 1-indexed
   M = [D(:); O(:)];
 
   J_nonbl = sparse(Mi, Mj, M, ni, ni);
