@@ -30,6 +30,7 @@ function y = eval_matrix(J, M, x)
   y = reshape(y2, nlocal*nt,1);
 end
 
+% Print the n_eigs top magnitude eigenvalues of eval_matrix and spy matrix
 function explore_eigenvalues(J, Ms, msh_name, n_eigs)
   if nargin < 4
     n_eigs = 100;
@@ -49,6 +50,7 @@ function explore_eigenvalues(J, Ms, msh_name, n_eigs)
   savefig(msh_name+"_J_eigs.fig");
 end
 
+% Initialize J, but zero out the matrix for all rows corresponding to the boundary layer elements
 function J_nonbl = init_jac_nonbl(msh, dir, bl_file)
   
   has_offdiag = isfile(dir+"Oij.mat");
