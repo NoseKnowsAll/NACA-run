@@ -104,11 +104,13 @@ int main(int argc, char **argv) {
     // MATLAB computation of eigenvalues: Print Dmat,OMat to file
     // TODO: Determine exactly which matrix to print to file
     /* // M-dt*J
+    dgprintf("Forming M-dt*J matrix\n");
     DMat = Ddrdu;
     OMat = Odrdu;
     */
     
     /* // Diagonal matrix with increasing values along the diagonal
+    dgprintf("Forming example diagonal matrix\n");
     DMat = 0.0;
     OMat = 0.0;
     for (int it = 0; it < nBI; ++it) {
@@ -119,6 +121,7 @@ int main(int argc, char **argv) {
     */
     
     /* // DMat == Mass
+    dgprintf("Forming mass matrix\n");
     DMat = 0.0;
     OMat = 0.0;
     serial::bdf_add_diag_mass(DMat, OMat, dt, msh, d);
