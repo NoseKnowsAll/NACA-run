@@ -1,5 +1,4 @@
 #include "dg.h"
-#include "dgavtools.h"
 #include <ios>
 #include <iostream>
 #include <sstream>
@@ -19,14 +18,15 @@ const double      AoAdeg   = 0.0;
 const int         NDT      = 7;
 const double      dts[NDT] = {1e-7,1e-6,1e-5,1e-4,2e-4,4e-4,1e-3}; // the dt we wish to sweep over
 const int         nsteps   = 5;   // Number of iterations to compute in order to avoid timing discrepancies
-const int         step0    = 1;   // Must have a precomputed solution at this time step to begin
+const int         step0    = 5000;   // Must have a precomputed solution at this time step to begin
 const int         writeint = 10;
 const int         nstages  = 3;
 
 const double      linerror = 1e-4;
 const double      nlerror  = 1e-6;
 
-void linassemble(jacarray& Ddrdu,jacarray &Odrdu, darray& r, appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);
+void linassemble(jacarray& Ddrdu,jacarray &Odrdu, jacarray& DJ,jacarray& OJ, darray& r,
+		 appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);
 
 double gettime() {
   int np;
@@ -70,10 +70,10 @@ int main(int argc, char **argv) {
   p.viscous = true;
 
   // Initialize solver parameters
-  int maxiter = 200;
-  int restart = 30;
+  int maxiter = 2000;
+  int restart = 200;
   // j => Jacobi, i => ILU, d => direct, b => boundary layer. See: dgitprecond.h
-  auto linsolver = LinearSolverOptions::gmres("b", linerror, maxiter, restart); 
+  auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart);
   auto newton = NewtonOptions(linsolver, nlerror);
   
   // Set up the solution variable
@@ -85,8 +85,10 @@ int main(int argc, char **argv) {
   int nBIN = msh.nBIN(); // == nt if np==1
   darray r(d.ns, N, nBIN);
   darray k(d.ns, N, nBIN);
-  jacarray Ddrdu(N*d.ns, N*d.ns, nBI);
+  jacarray Ddrdu(N*d.ns,  N*d.ns, nBI);
   jacarray Odrdu(N*d.nes, N*d.ns, msh.nf, nBI);
+  jacarray DJ   (N*d.ns,  N*d.ns, nBI);
+  jacarray OJ   (N*d.nes, N*d.ns, msh.nf, nBI);
   darray results(2, NDT);
   
   // Don't compute initial steps. Load soln from file instead
@@ -101,14 +103,24 @@ int main(int argc, char **argv) {
     int iter = 0;
     for (int i = 0; i < nsteps; i++) {
       double init_time = gettime();
+      
       // Assemble M-dt*J
       double timer0 = gettime();
-      linassemble(Ddrdu,Odrdu, r, a,msh,d,p, u,dt);
+      linassemble(Ddrdu,Odrdu, DJ,OJ, r, a,msh,d,p, u,dt);
       dgprintf("%7.3f ", gettime() - timer0);
+      
       // Linear solve (M-dt*J)k = r
       k = 0.0;
       timer0 = gettime();
+      /*
+      //  First initialize preconditioner - Direct solver for only diagonal portion of M-dt*J
+      DJ = Ddrdu;
+      OJ = 0.0;
+      dgitprecond precond(msh, d, DJ, OJ, "j", false);
+      */
+      //  Then solve the linear system
       std::pair<double,int> linsolve_stats = linsolve(msh, d, Ddrdu, Odrdu, r, k, newton.linsolver);
+      //std::pair<double,int> linsolve_stats = dgkrylovsolve(msh, d, Ddrdu, Odrdu, r, k, newton.linsolver, &precond);
       dgprintf("%7.3f ", gettime() - timer0);
       if (newton.linsolver.solver != "direct") {
 	dgprintf("%3d", linsolve_stats.second);
@@ -134,8 +146,9 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 }
 
-// Assemble Ddrdu,Odrdu to contain M-dt*J information. Assemble r as well
-void linassemble(jacarray& Ddrdu,jacarray &Odrdu, darray& r, appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt) {
+// Assemble Ddrdu,Odrdu to contain M-dt*J information. Assemble J and r as well
+void linassemble(jacarray& Ddrdu,jacarray &Odrdu, jacarray& DJ,jacarray &OJ, darray& r,
+		 appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt) {
   int np;
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   if (np > 1) {
@@ -143,10 +156,17 @@ void linassemble(jacarray& Ddrdu,jacarray &Odrdu, darray& r, appl& a,mesh& msh,d
     mpi::parassembleB(a,u,r, Ddrdu, Odrdu, msh, d, p);
     pr.communicate();
     mpi::parassembleI(a,u,r, Ddrdu, Odrdu, msh, d, p);
+    DJ = Ddrdu;
+    OJ = Odrdu;
+    
     mpi::bdf_add_diag_mass(Ddrdu, Odrdu, dt, msh, d);
     pr.waitforall();
+    
   } else {
     dgassemble(a, u, r, Ddrdu, Odrdu, msh, d, p);
+    DJ = Ddrdu;
+    OJ = Odrdu;
+    
     serial::bdf_add_diag_mass(Ddrdu, Odrdu, dt, msh, d);
   }
 }
