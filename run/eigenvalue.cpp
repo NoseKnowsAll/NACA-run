@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     OMat = 0.0;
     serial::bdf_add_diag_mass(DMat, OMat, dt, msh, d);
     */
-    
+
     fwritejac(msh, d, N, DMat, OMat, pre+"../");
     return 0;
 
