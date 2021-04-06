@@ -3,6 +3,7 @@ timing2d
 benchmark_dgops
 eigenvalue
 sweep_dt
+sweep_dt_bl
 
 # Meshes
 *.h5

@@ -9,8 +9,6 @@ mass_dir = results_dir+"mass/";
 
 msh = h5freadstruct(msh_file);
 J_nonbl = init_jac_nonbl(msh, results_dir, bl_file);
-%figure(1);
-%spy(J_nonbl);
 Ms = freadarray(mass_dir+"Dv.mat");
 %M_total = freadjac(mass_dir);
 %figure(2);
@@ -30,7 +28,7 @@ function y = eval_matrix(J, M, x)
   y = reshape(y2, nlocal*nt,1);
 end
 
-% Print the n_eigs top magnitude eigenvalues of eval_matrix and spy matrix
+% Print the n_eigs top magnitude eigenvalues of eval_matrix and spy Jacobian matrix
 function explore_eigenvalues(J, Ms, msh_name, n_eigs)
   if nargin < 4
     n_eigs = 100;
