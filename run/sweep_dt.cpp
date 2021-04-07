@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
       double timer0 = gettime();
       linassemble(Ddrdu,Odrdu, DJ,OJ, r, a,msh,d,p, u,dt);
       dgprintf("%7.3f ", gettime() - timer0);
-      
+
       // Linear solve (M-dt*J)k = r
       k = 0.0;
       timer0 = gettime();
