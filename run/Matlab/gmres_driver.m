@@ -11,19 +11,28 @@ function gmres_driver()
   J   = freadjac(results_dir);
   JD  = freadarray(results_dir+"Dv.mat");
   Ms  = freadarray(mass_dir+"Dv.mat");
-  b   = freadarray(results_dir+"residual.mat");
+  b   = freadarray(results_dir+"mass/residual.mat");
   b   = b(:);
+
   dt  = 1e-3;
 
   %Atimes = @(x)evaluate_matrix(J, Ms, x);
   Atimes  = @(x)time_dependant_jacobian(J, Ms, dt, x);
-  precond = init_jacobi(JD, Atimes, b);
+  DA = Ms-dt*JD;
+
+  test_jacobi(DA, b);
+  return;
+  
+  precond = init_jacobi(DA, Atimes, b);
   %precond = @(x) x;
-  maxiter = 2000;
-  restart = 200;
+  
+  maxiter = 500;
+  restart = 500;
   tol = 1e-4;
   fprintf("GMRES initialized successfully\n");
   t_start = tic;
+  %[x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter, precond);
+  %disp(flag);
   [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, true);
   t_gmres = toc(t_start);
   
@@ -56,4 +65,57 @@ function y = time_dependant_jacobian(J, Ms, dt, x)
     y2(:,it) = y2(:,it) + Ms(:,:,it)*x2(:,it);
   end
   y = reshape(y2, nlocal*nt,1);
+end
+
+% Test that matvec done in Matlab is same as in C++
+function test_matvec(Atimes, b, results_dir)
+  Ab1 = Atimes(b);
+  Ab2 = freadarray(results_dir+"mass/benchmark_matvec.mat");
+  Ab2 = Ab2(:);
+
+  norm(b)
+  norm(Ab1)
+  norm(Ab2)
+  fprintf("diff = %f\n", norm(Ab1-Ab2));
+end
+
+% Evaluate (JD \otimes I) * x
+function y = evaluate_diagonal_matrix(JD, x)
+  nlocal = size(JD,1);
+  nt = size(JD,3);
+
+  y2 = zeros(nlocal, nt);
+  x2 = reshape(x, nlocal,nt);
+  for it = 1:nt
+    y2(:,it) = JD(:,:,it)*x2(:,it);
+  end
+  y = reshape(y2, nlocal*nt,1);
+end
+
+% Evaluate (JD \otimes I) \ b
+function x = invert_diagonal_matrix(JD, b)
+  nlocal = size(JD,1);
+  nt = size(JD,3);
+
+  x2 = zeros(nlocal, nt);
+  b2 = reshape(b, nlocal,nt);
+  for it = 1:nt
+    x2(:,it) = JD(:,:,it)\b2(:,it);
+  end
+  x = reshape(x2, nlocal*nt,1);
+end
+
+% Test that jacobi iteration actually computes inverse of diagonal
+function test_jacobi(JD, b)
+  Atimes = @(x) evaluate_diagonal_matrix(JD, x);
+  precond = init_jacobi(JD, Atimes, b);
+
+  x = zeros(size(b));
+  x = precond(x);
+
+  x2 = invert_diagonal_matrix(JD, b);
+
+  norm(x)
+  norm(x2)
+  fprintf("diff = %f\n", norm(x2-x));
 end

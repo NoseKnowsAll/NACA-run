@@ -5,7 +5,7 @@
 % left-preconditioned system P\Ax = P\b
 function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, verbose)
   
-  % initialization
+  % Initialization
   if nargin < 6
     verbose = false
     if nargin < 5
@@ -19,7 +19,7 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, verbos
   end
   b0 = precond(b);
   residual = norm(b0);
-  tol = tol*(1+residual);
+  tol = tol*residual;
   if verbose
     fprintf("Static GMRES, reaching absolute tolerance %8.5f in %d maximum iterations.\n", tol, maxiter);
   end
