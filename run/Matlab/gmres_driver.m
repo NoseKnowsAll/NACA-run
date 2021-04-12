@@ -19,9 +19,6 @@ function gmres_driver()
   %Atimes = @(x)evaluate_matrix(J, Ms, x);
   Atimes  = @(x)time_dependant_jacobian(J, Ms, dt, x);
   DA = Ms-dt*JD;
-
-  test_jacobi(DA, b);
-  return;
   
   precond = init_jacobi(DA, Atimes, b);
   %precond = @(x) x;
@@ -68,9 +65,9 @@ function y = time_dependant_jacobian(J, Ms, dt, x)
 end
 
 % Test that matvec done in Matlab is same as in C++
-function test_matvec(Atimes, b, results_dir)
+function test_matvec(Atimes, b, mass_dir)
   Ab1 = Atimes(b);
-  Ab2 = freadarray(results_dir+"mass/benchmark_matvec.mat");
+  Ab2 = freadarray(mass_dir+"benchmark_matvec.mat");
   Ab2 = Ab2(:);
 
   norm(b)
@@ -106,9 +103,11 @@ function x = invert_diagonal_matrix(JD, b)
 end
 
 % Test that jacobi iteration actually computes inverse of diagonal
-function test_jacobi(JD, b)
+function test_jacobi(JD, b, mass_dir)
   Atimes = @(x) evaluate_diagonal_matrix(JD, x);
   precond = init_jacobi(JD, Atimes, b);
+  x3 = freadarray(mass_dir+"benchmark_jacobi.mat");
+  x3 = x3(:);
 
   x = zeros(size(b));
   x = precond(x);
@@ -117,5 +116,8 @@ function test_jacobi(JD, b)
 
   norm(x)
   norm(x2)
-  fprintf("diff = %f\n", norm(x2-x));
+  norm(x3)
+  fprintf("diff12 = %f\n", norm(x2-x));
+  fprintf("diff23 = %f\n", norm(x3-x2));
+  fprintf("diff13 = %f\n", norm(x3-x));
 end

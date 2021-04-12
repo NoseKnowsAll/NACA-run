@@ -11,7 +11,11 @@ end
 
 % Evaluate block diagonal Jacobi method applied to vector x
 % y = x + D\(b-A*x) == D\(b-(L+U)x)
-function y = evaluate_jacobi(Dinvs, A, b, x)
+% weighted = true => y = x + 2/3*D\(b-A*x)
+function y = evaluate_jacobi(Dinvs, A, b, x, weighted)
+  if nargin < 5
+    weighted = false;
+  end
   nt = size(Dinvs,1);
   nlocal = Dinvs{1}.MatrixSize(2);
   y1 = b - A(x);
@@ -19,7 +23,9 @@ function y = evaluate_jacobi(Dinvs, A, b, x)
   for it = 1:nt
     y2(:,it) = Dinvs{it}\y2(:,it);
   end
-  % y2 = (2.0/3.0)*y2; % Weighted Jacobi method, only for MGPC
+  if weighted
+    y2 = (2.0/3.0)*y2; % Weighted Jacobi method, only for MGPC
+  end
   y = reshape(y2, nlocal*nt, 1);
   y = y+x;
 end
