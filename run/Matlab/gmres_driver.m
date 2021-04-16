@@ -7,7 +7,7 @@ function gmres_driver()
   results_dir = "/scratch/mfranco/2021/naca/run/results/"+msh_name+"/";
   mass_dir = results_dir+"mass/";
 
-  msh = h5freadstruct(msh_file);
+  %msh = h5freadstruct(msh_file);
   J   = freadjac(results_dir);
   JD  = freadarray(results_dir+"Dv.mat");
   Ms  = freadarray(mass_dir+"Dv.mat");
@@ -20,8 +20,8 @@ function gmres_driver()
   Atimes  = @(x)time_dependant_jacobian(J, Ms, dt, x);
   DA = Ms-dt*JD;
   
-  precond = init_jacobi(DA, Atimes, b);
-  %precond = @(x) x;
+  %precond = init_jacobi(DA, Atimes, b);
+  precond = @(x) x;
   
   maxiter = 500;
   restart = 500;
@@ -30,7 +30,9 @@ function gmres_driver()
   t_start = tic;
   %[x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter, precond);
   %disp(flag);
-  [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, true);
+  %[x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, true);
+  [x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
+  %[x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, true);
   t_gmres = toc(t_start);
   
   fprintf("total iterations: %d\n", iter);
