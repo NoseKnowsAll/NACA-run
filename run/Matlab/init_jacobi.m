@@ -13,6 +13,12 @@ end
 % y = x + D\(b-A*x) == D\(b-(L+U)x)
 % weighted = true => y = x + 2/3*D\(b-A*x)
 function y = evaluate_jacobi(Dinvs, A, b, x, weighted)
+
+  % TODO: Understand why dgitsolve MGPC has this at the beginning for all preconditioners...
+  b = x;
+  x = zeros(size(x));
+  % Basically just transforms this method to y = D\x
+  
   if nargin < 5
     weighted = false;
   end
