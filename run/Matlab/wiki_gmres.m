@@ -14,8 +14,8 @@ function [x, iter, residuals] = wiki_gmres(A, b, tol, maxiter, precond, verbose)
     maxiter = m;
   end
 
-  r = precond(b); % Left preconditioning
-  %r = b; % Right preconditioning
+  %r = precond(b); % Left preconditioning
+  r = b; % Right preconditioning
   b_norm = norm(b);
   residual = norm(r)/b_norm;
   sn = zeros(maxiter, 1);
@@ -53,18 +53,18 @@ function [x, iter, residuals] = wiki_gmres(A, b, tol, maxiter, precond, verbose)
   % Now that convergence has been met, retrieve solution x
   iter = n;
   x = Q(:,1:iter) * ( H(1:iter,1:iter)\beta(1:iter) );
-  %x = precond(x); % Right preconditioning
+  x = precond(x); % Right preconditioning
 
 end
 
 % Perform an Arnoldi iteration
 function [h, q] = arnoldi(A, Q, precond, n)
   if isa(A, 'function_handle')
-    q = precond(A(Q(:,n))); % Left preconditioning
-    %q = A(precond(Q(:,n))); % Right preconditioning
+    %q = precond(A(Q(:,n))); % Left preconditioning
+    q = A(precond(Q(:,n))); % Right preconditioning
   else
-    q = precond(A*Q(:,n)); % Left preconditioning
-    %q = A*precond(Q(:,n)); % Right preconditioning
+    %q = precond(A*Q(:,n)); % Left preconditioning
+    q = A*precond(Q(:,n)); % Right preconditioning
   end
   h = zeros(n+1,1);
   for i = 1:n
