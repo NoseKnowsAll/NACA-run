@@ -22,28 +22,34 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
   if maxiter > m
     maxiter = m;
   end
-  b0 = precond(b);
+  b0 = precond(b); % Left preconditioning
+  %b0 = b;           % Right preconditioning
   beta = norm(b0);
   local_converge_iters = zeros(nt,1);
   local_residuals = local_norms(b0, nlocal);
-  tols = tol*local_residuals;
+  % TODO: What is the actual correct level of accuracy?
+  tols = tol*local_residuals/nt; % We need more accuracy for each element in order to reach global accuracy of static GMRES. 
   Q = b0/beta;
   omegaN = 1;
   H = [];
+  Z = [];
   residuals = [];
 
   for n = 1:maxiter
 
     % Arnoldi iteration
     if isa(A, 'function_handle')
-      vec = A(Q(:,n));
+      vec = precond(A(Q(:,n))); % Left preconditioning
+      %Z(:,n) = precond(Q(:,n)); % Flexible GMRES 
+      %vec = A(Z(:,n)); % Right preconditioning
     else
-      vec = A*Q(:,n);
+      vec = precond(A*Q(:,n)); % Left preconditioning
+      %Z(:,n) = precond(Q(:,n)); % Flexible GMRES
+      %vec = A*Z(:,n); % Right preconditioning
     end
-    vec = precond(vec);
     h = Q'*vec;
     vec = vec - Q*h;
-    hN = norm(vec); % TODO: this value is still an unknown to me
+    hN = norm(vec); % TODO: this value is still an unknown to me in true adaptive GMRES
     H = [H h;
 	 zeros(1, n-1) hN];
 
@@ -63,14 +69,16 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
     
     e1 = [1; zeros(n,1)];
     y = H\(beta*e1);
-    x = Q*y;
+    x = Q*y; % GMRES
+    %x = Z*y; % Flexible GMRES
+    %x = precond(x); % Right preconditioning
     if isa(A, 'function_handle')
       res = b - A(x);
     else
       res = b - A*x;
     end
+    %res = precond(res); % Left preconditioning
     fprintf("||res|| = %f\n", norm(res));
-    res = precond(res);
     local_residuals = local_norms(res, nlocal);
     % TODO: Should be this actually, but the other way I don't have to worry about re-orderings
     % local_residuals = local_norms(res, nlocal, local_converge_iters == 0);
@@ -98,10 +106,15 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
     
   end
 
+  % Display iterations that converged locally after everything was said and done
+  %disp(find(local_converge_iters));
+
   % Now that convergence has been met, retrieve solution x
   iter = n;
   e1 = [1; zeros(iter,1)];
-  x = Q * ( H\(beta*e1) );
+  x = Q * ( H\(beta*e1) ); % GMRES
+  %x = Z * ( H\(beta*e1) ); % Flexible GMRES
+  %x = precond(x); % Right preconditioning
   
 end
 
