@@ -24,19 +24,18 @@ function gmres_driver()
   
   maxiter = 500;
   restart = 500;
-  tol = 1e-4;
+  tol = 1e-5;
   fprintf("GMRES initialized successfully\n");
   t_start = tic;
   %maxiter = 1; [x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter, precond);
   %maxiter = 1; [x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter);
   %disp(flag);
-  %maxiter = 1; [x, ~, itvec, residuals] = per_gmres(Atimes,b,restart,tol,maxiter,precond,zeros(size(b)),zeros(size(b)),true); iter=itvec(end);
 
   %[x, iter, residuals] = cpp_gmres(Atimes, b, tol, maxiter, restart, precond, true);
   
-  %[x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, true);
+  [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "left", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
-  [x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, true);
+  %[x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, true);
   %fwritearray("adaptive_res.mat", residuals);
 
   t_gmres = toc(t_start);
