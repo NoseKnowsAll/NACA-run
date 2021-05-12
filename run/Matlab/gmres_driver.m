@@ -20,11 +20,12 @@ function gmres_driver()
   DA = Ms-dt*JD;
   
   precond = init_jacobi(DA, Atimes, b);
+  %precond = init_mass_inv(Ms);
   %precond = @(x) x;
   
   maxiter = 500;
   restart = 500;
-  tol = 1e-5;
+  tol = 1e-4;
   fprintf("GMRES initialized successfully\n");
   t_start = tic;
   %maxiter = 1; [x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter, precond);
@@ -33,9 +34,9 @@ function gmres_driver()
 
   %[x, iter, residuals] = cpp_gmres(Atimes, b, tol, maxiter, restart, precond, true);
   
-  [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "left", true);
+  %[x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "flexible", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
-  %[x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, true);
+  [x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, "flexible", true);
   %fwritearray("adaptive_res.mat", residuals);
 
   t_gmres = toc(t_start);

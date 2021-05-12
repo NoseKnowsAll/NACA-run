@@ -4,13 +4,21 @@
 % A can be a function handle s.t. A(x) = A*x = b is linear system to solve.
 % precond is a function handle s.t. precond(x) = P\x for use in solving
 % left-preconditioned system P\Ax = P\b.
-function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, precond, verbose)
+function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, precond, method, verbose)
   
   % Initialization
-  if nargin < 7
+  if nargin < 8
     verbose = false;
-    if nargin < 6
-      precond = @(x) x;
+    if nargin < 7
+      method = "flexible";
+      if nargin < 6
+	precond = @(x) x;
+      end
+    else
+      if ~(ismember(method, ["left", "right", "flexible"]))
+	fprintf("Invalid method specified for GMRES. Resetting to FGMRES...\n");
+	method = "flexible";
+      end
     end
   end
   if verbose
@@ -22,13 +30,18 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
   if maxiter > m
     maxiter = m;
   end
-  b0 = precond(b); % Left preconditioning
-  %b0 = b;           % Right preconditioning
+  if method == "left"
+    b0 = precond(b);  % Left preconditioning
+  elseif method == "right"
+    b0 = b;           % Right preconditioning
+  elseif method == "flexible"
+    b0 = b;           % FGMRES
+  end
   beta = norm(b0);
   local_converge_iters = zeros(nt,1);
   local_residuals = local_norms(b0, nlocal);
   % TODO: What is the actual correct level of accuracy?
-  tols = tol*local_residuals/nt; % We need more accuracy for each element in order to reach global accuracy of static GMRES. 
+  tols = tol*local_residuals; % We need more accuracy for each element in order to reach global accuracy of static GMRES. 
   Q = b0/beta;
   omegaN = 1;
   H = [];
@@ -39,13 +52,23 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
 
     % Arnoldi iteration
     if isa(A, 'function_handle')
-      vec = precond(A(Q(:,n))); % Left preconditioning
-      %Z(:,n) = precond(Q(:,n)); % Flexible GMRES 
-      %vec = A(Z(:,n)); % Right preconditioning
+      if method == "left"
+	vec = precond(A(Q(:,n)));
+      elseif method == "right"
+	vec = A(precond(Q(:,n)));
+      elseif method == "flexible"
+	Z(:,n) = precond(Q(:,n)); % Forms basis for preconditioned Krylov subspace (AM^{-1})
+	vec = A(Z(:,n));
+      end
     else
-      vec = precond(A*Q(:,n)); % Left preconditioning
-      %Z(:,n) = precond(Q(:,n)); % Flexible GMRES
-      %vec = A*Z(:,n); % Right preconditioning
+      if method == "left"
+	vec = precond(A*Q(:,n));
+      elseif method == "right"
+	vec = A*precond(Q(:,n));
+      elseif method == "flexible"
+	Z(:,n) = precond(Q(:,n)); % Forms basis for preconditioned Krylov subspace (AM^{-1})
+	vec = A*Z(:,n);
+      end
     end
     h = Q'*vec;
     vec = vec - Q*h;
@@ -69,19 +92,27 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
     
     e1 = [1; zeros(n,1)];
     y = H\(beta*e1);
-    x = Q*y; % GMRES
-    %x = Z*y; % Flexible GMRES
-    %x = precond(x); % Right preconditioning
+    if method == "left"
+      x = Q*y;
+    elseif method == "right"
+      x = precond(Q*y);
+    elseif method == "flexible"
+      x = Z*y;
+    end
     if isa(A, 'function_handle')
       res = b - A(x);
     else
       res = b - A*x;
     end
-    %res = precond(res); % Left preconditioning
+    if method == "left"
+      res = precond(res);
+    end
     fprintf("||res|| = %f\n", norm(res));
     local_residuals = local_norms(res, nlocal);
-    % TODO: Should be this actually, but the other way I don't have to worry about re-orderings
+    % TODO: Should be the following line actually, but the other way I don't have to worry about re-orderings
     % local_residuals = local_norms(res, nlocal, local_converge_iters == 0);
+    %local_converge_iters(local_converge_iters == 0 && local_residuals < tols) = n;
+
     residuals = [residuals local_residuals];
     for i = 1:length(local_converge_iters)
       if local_converge_iters(i) == 0 && local_residuals(i) < tols(i)
@@ -89,7 +120,6 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
 	fprintf("%d just converged.\n", i);
       end
     end
-    %local_converge_iters(local_converge_iters == 0 && local_residuals < tols) = n;
     n_unconverged = nnz(local_converge_iters == 0);
     if verbose
       fprintf("it: %4d, hN = %8.6f, unconverged = %d\n", n, hN, n_unconverged);
@@ -106,15 +136,17 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
     
   end
 
-  % Display iterations that converged locally after everything was said and done
-  %disp(find(local_converge_iters));
-
   % Now that convergence has been met, retrieve solution x
   iter = n;
   e1 = [1; zeros(iter,1)];
-  x = Q * ( H\(beta*e1) ); % GMRES
-  %x = Z * ( H\(beta*e1) ); % Flexible GMRES
-  %x = precond(x); % Right preconditioning
+  if method == "left"
+    x = Q * ( H\(beta*e1) );
+  elseif method == "right"
+    x = Q * ( H\(beta*e1) );
+    x = precond(x);
+  elseif method == "flexible"
+    x = Z * ( H\(beta*e1) );
+  end
   
 end
 

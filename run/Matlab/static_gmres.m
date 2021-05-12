@@ -12,13 +12,13 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
   if nargin < 7
     verbose = false;
     if nargin < 6
-      method = "flexible"
+      method = "flexible";
       if nargin < 5
 	precond = @(x) x;
       end
     else
       if ~(ismember(method, ["left", "right", "flexible"]))
-	fprintf("Invalid method specified for GMRES. Reseting to FGMRES...\n");
+	fprintf("Invalid method specified for GMRES. Resetting to FGMRES...\n");
 	method = "flexible";
       end
     end
@@ -37,7 +37,6 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
   end
   beta = norm(b0);
   residual = beta;
-  fprintf("beta = %f\n", beta);
   tol = tol*beta;
   if verbose
     if method == "left"
