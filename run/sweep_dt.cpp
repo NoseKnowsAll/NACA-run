@@ -16,7 +16,8 @@ const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const int         NDT      = 7;
-const double      dts[NDT] = {1e-7,1e-6,1e-5,1e-4,2e-4,4e-4,1e-3}; // the dt we wish to sweep over
+//const double      dts[NDT] = {1e-7,1e-6,1e-5,1e-4,2e-4,4e-4,1e-3}; // the dt we wish to sweep over
+const double dts[1] = {1e-3};
 const int         nsteps   = 5;   // Number of iterations to compute in order to avoid timing discrepancies
 const int         step0    = 5000;   // Must have a precomputed solution at this time step to begin
 const int         writeint = 10;
@@ -70,8 +71,8 @@ int main(int argc, char **argv) {
   p.viscous = true;
 
   // Initialize solver parameters
-  int maxiter = 2000;
-  int restart = 200;
+  int maxiter = 500;
+  int restart = 500;
   // j => Jacobi, i => ILU, d => direct, b => boundary layer. See: dgitprecond.h
   auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart);
   auto newton = NewtonOptions(linsolver, nlerror);
@@ -90,6 +91,12 @@ int main(int argc, char **argv) {
   jacarray DJ   (N*d.ns,  N*d.ns, nBI);
   jacarray OJ   (N*d.nes, N*d.ns, msh.nf, nBI);
   darray results(2, NDT);
+
+  /* // TODO: Print out element sizes
+  darray elem_sizes(nBI);
+  element_sizes(elem_sizes, msh, d);
+  fwritearray(pre+"../mass/areas.mat", elem_sizes);
+  return 0;*/
   
   // Don't compute initial steps. Load soln from file instead
   dgprintf(" >>> Checkpointing from %d <<<\n", step0);
@@ -118,6 +125,16 @@ int main(int argc, char **argv) {
       OJ = 0.0;
       dgitprecond precond(msh, d, DJ, OJ, "j", false);
       */
+
+      /*
+      // Debugging jacobi method
+      dgitprecond precond(msh, d, Ddrdu, Odrdu, "j", false);
+      fwritearray(pre+"../mass/benchmark_residual2.mat", r);
+      precond.mgpc(r);
+      fwritearray(pre+"../mass/benchmark_unweighted_jacobi.mat", r);
+      return 0;
+      */
+
       //  Then solve the linear system
       std::pair<double,int> linsolve_stats = linsolve(msh, d, Ddrdu, Odrdu, r, k, newton.linsolver);
       //std::pair<double,int> linsolve_stats = dgkrylovsolve(msh, d, Ddrdu, Odrdu, r, k, newton.linsolver, &precond);
@@ -131,6 +148,9 @@ int main(int argc, char **argv) {
       double time = gettime() - init_time;
       if (time < min_time)
 	min_time = time;
+
+      dgprintf("Quitting early to debug GMRES algorithm\n");
+      return 0; // TODO: Original sweep continues here
     }
     results(0,test) = iter;
     results(1,test) = min_time;
