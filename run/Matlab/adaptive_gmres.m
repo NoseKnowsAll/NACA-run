@@ -1,10 +1,13 @@
-% GMRES on element-based matrix, vectors and adaptively ignore elements where answer has converged.
+% GMRES on element-based matrix/vectors and adaptively ignore elements where answer has converged.
 % nlocal is size of all DoFs related to one element.
 % A can be a matrix s.t. A*x = b is the linear system to solve or
 % A can be a function handle s.t. A(x) = A*x = b is linear system to solve.
 % precond is a function handle s.t. precond(x) = P\x for use in solving
-% left-preconditioned system P\Ax = P\b.
-function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, precond, method, verbose)
+% (a) left-preconditioned system P\Au = P\b
+% or (b) right-preconditioned system AP\u = b, u=Px
+% Can specify preconditioning of GMRES method to be "left", "right", or "flexible".
+% Default method: "flexible" => FGMRES.
+function [x, iter, residuals] = adaptive_gmres(A, b, scalings, tol, maxiter, precond, method, verbose)
   
   % Initialization
   if nargin < 8
@@ -21,12 +24,17 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
       end
     end
   end
+  if isa(scalings, 'number')
+    nt = scalings;
+  else
+    nt = length(scalings);
+  end
   if verbose
     fprintf("Adaptive GMRES, reaching local relative tolerances %.1e in %d maximum iterations.\n", tol, maxiter);
   end
   
   m = length(b);
-  nt = m/nlocal;
+  nlocal = m/nt;
   if maxiter > m
     maxiter = m;
   end
@@ -41,7 +49,7 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
   local_converge_iters = zeros(nt,1);
   local_residuals = local_norms(b0, nlocal);
   % TODO: What is the actual correct level of accuracy?
-  tols = tol*local_residuals; % We need more accuracy for each element in order to reach global accuracy of static GMRES. 
+  tols = tol*local_residuals*scalings; % We need more accuracy for each element in order to reach global accuracy of static GMRES. 
   Q = b0/beta;
   omegaN = 1;
   H = [];
@@ -108,7 +116,7 @@ function [x, iter, residuals] = adaptive_gmres(A, b, nlocal, tol, maxiter, preco
       res = precond(res);
     end
     fprintf("||res|| = %f\n", norm(res));
-    local_residuals = local_norms(res, nlocal);
+    local_residuals = local_norms(res, nlocal)*scalings;
     % TODO: Should be the following line actually, but the other way I don't have to worry about re-orderings
     % local_residuals = local_norms(res, nlocal, local_converge_iters == 0);
     %local_converge_iters(local_converge_iters == 0 && local_residuals < tols) = n;

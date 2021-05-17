@@ -14,6 +14,8 @@ function gmres_driver()
   Ms  = freadarray(mass_dir+"Dv.mat");
   b   = freadarray(results_dir+"mass/residual.mat");
   b   = b(:);
+  areas = freadarray(mass_dir+"areas.mat");
+  areas = areas(:);
 
   %Atimes = @(x)evaluate_matrix(J, Ms, x);
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
@@ -36,7 +38,7 @@ function gmres_driver()
   
   %[x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "flexible", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
-  [x, iter, residuals] = adaptive_gmres(Atimes, b, size(Ms,1), tol, maxiter, precond, "flexible", true);
+  scalings = 1/areas; [x, iter, residuals] = adaptive_gmres(Atimes, b, scalings, tol, maxiter, precond, "flexible", true);
   %fwritearray("adaptive_res.mat", residuals);
 
   t_gmres = toc(t_start);
