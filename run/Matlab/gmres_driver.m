@@ -17,7 +17,7 @@ function gmres_driver()
   areas = freadarray(mass_dir+"areas.mat");
   areas = areas(:);
 
-  %Atimes = @(x)evaluate_matrix(J, Ms, x);
+  %Atimes = @(x)evaluate_eigenvalue_matrix(J, Ms, x);
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
   DA = Ms-dt*JD;
   
@@ -36,9 +36,9 @@ function gmres_driver()
 
   %[x, iter, residuals] = cpp_gmres(Atimes, b, tol, maxiter, restart, precond, true);
   
-  %[x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "flexible", true);
+  [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "flexible", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
-  scalings = 1/areas; [x, iter, residuals] = adaptive_gmres(Atimes, b, scalings, tol, maxiter, precond, "flexible", true);
+  %scalings = 1/areas; [x, iter, residuals] = adaptive_gmres(Atimes, b, scalings, tol, maxiter, precond, "flexible", true);
   %fwritearray("adaptive_res.mat", residuals);
 
   t_gmres = toc(t_start);
@@ -47,31 +47,6 @@ function gmres_driver()
   fprintf("time: %6.2f\n", t_gmres);
   fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
   
-end
-
-% Evaluate ( Ms\otimes I ) \ J * x
-function y = evaluate_matrix(J, Ms, x)
-  y1 = J * x;
-  nlocal = size(Ms,1);
-  nt = size(Ms,3);
-  y2 = reshape(y1, nlocal, nt);
-  for it = 1:nt
-    y2(:,it) = Ms(:,:,it)\y2(:,it);
-  end
-  y = reshape(y2, nlocal*nt,1);
-end
-
-% Evaluate (Ms \otimes I - dt*J) * x
-function y = time_dependent_jacobian(J, Ms, dt, x)
-  y1 = -dt*J*x;
-  nlocal = size(Ms,1);
-  nt = size(Ms,3);
-  y2 = reshape(y1, nlocal, nt);
-  x2 = reshape(x,  nlocal, nt);
-  for it = 1:nt
-    y2(:,it) = y2(:,it) + Ms(:,:,it)*x2(:,it);
-  end
-  y = reshape(y2, nlocal*nt,1);
 end
 
 % Ensure that time_dependent_jacobian evaluates correctly
@@ -110,32 +85,6 @@ function test_matvec(Atimes, b, mass_dir)
   norm(Ab1)
   norm(Ab2)
   fprintf("diff = %f\n", norm(Ab1-Ab2));
-end
-
-% Evaluate (JD \otimes I) * x
-function y = evaluate_diagonal_matrix(JD, x)
-  nlocal = size(JD,1);
-  nt = size(JD,3);
-
-  y2 = zeros(nlocal, nt);
-  x2 = reshape(x, nlocal,nt);
-  for it = 1:nt
-    y2(:,it) = JD(:,:,it)*x2(:,it);
-  end
-  y = reshape(y2, nlocal*nt,1);
-end
-
-% Evaluate (JD \otimes I) \ b
-function x = invert_diagonal_matrix(JD, b)
-  nlocal = size(JD,1);
-  nt = size(JD,3);
-
-  x2 = zeros(nlocal, nt);
-  b2 = reshape(b, nlocal,nt);
-  for it = 1:nt
-    x2(:,it) = JD(:,:,it)\b2(:,it);
-  end
-  x = reshape(x2, nlocal*nt,1);
 end
 
 % Test that jacobi iteration actually computes inverse of diagonal
