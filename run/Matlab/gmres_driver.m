@@ -19,9 +19,9 @@ function gmres_driver()
 
   %Atimes = @(x)evaluate_eigenvalue_matrix(J, Ms, x);
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  DA = Ms-dt*JD;
+  diagA = Ms-dt*JD;
   
-  precond = init_jacobi(DA, Atimes, b);
+  precond = init_jacobi(Atimes, diagA, b);
   %precond = init_mass_inv(Ms);
   %precond = @(x) x;
   
@@ -59,12 +59,12 @@ function test_time_dependent(results_dir, mass_dir, dt)
   Ms  = freadarray(mass_dir+"Dv.mat");
 
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  DA = Ms-dt*JD;
+  diagA = Ms-dt*JD;
 
   ni = size(JD,1)*size(JD,3);
   Ai = double([Dij(1,:).'; Oij(1,:).'])+1; % MATLAB is 1-indexed
   Aj = double([Dij(2,:).'; Oij(2,:).'])+1; % MATLAB is 1-indexed
-  Av = [DA(:); -dt*JO(:)];
+  Av = [diagA(:); -dt*JO(:)];
   A = sparse(Ai, Aj, Av, ni, ni);
 
   test_x = randn(ni,1);
@@ -97,8 +97,8 @@ function test_jacobi(results_dir, mass_dir, dt, b)
   %Atimes = @(x) evaluate_diagonal_matrix(JD, x);
   Atimes  = @(x) time_dependent_jacobian(J, Ms, dt, x);
 
-  DA = Ms-dt*JD;
-  precond = init_jacobi(DA, Atimes, b);
+  diagA = Ms-dt*JD;
+  precond = init_jacobi(Atimes, diagA, b);
   
   x3 = freadarray(mass_dir+"benchmark_jacobi.mat");
   x3 = x3(:);
@@ -133,8 +133,8 @@ function test_diagonal_theory(results_dir, mass_dir, dt, b)
   %Atimes = @(x) evaluate_diagonal_matrix(JD, x);
   Atimes  = @(x) time_dependent_jacobian(J, Ms, dt, x);
 
-  DA = Ms-dt*JD;
-  precond = init_jacobi(DA, Atimes, b);
+  diagA = Ms-dt*JD;
+  precond = init_jacobi(Atimes, diagA, b);
 
   x = b;
   x2 = precond(Atimes(x));
@@ -159,18 +159,18 @@ function test_backslash(results_dir, mass_dir, dt, b)
   Ms  = freadarray(mass_dir+"Dv.mat");
 
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  DA = Ms-dt*JD;
+  diagA = Ms-dt*JD;
 
   ni = size(JD,1)*size(JD,3);
   Ai = double([Dij(1,:).'; Oij(1,:).'])+1; % MATLAB is 1-indexed
   Aj = double([Dij(2,:).'; Oij(2,:).'])+1; % MATLAB is 1-indexed
-  Av = [DA(:); -dt*JO(:)];
+  Av = [diagA(:); -dt*JO(:)];
   A = sparse(Ai, Aj, Av, ni, ni);
 
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  DA = Ms-dt*JD;
+  diagA = Ms-dt*JD;
   
-  precond = init_jacobi(DA, Atimes, b);
+  precond = init_jacobi(Atimes, diagA, b);
   %precond = @(x) x;
 
   %x = A\b;

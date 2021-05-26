@@ -1,10 +1,11 @@
 % Initialize Jacobi method for use as a preconditioner
-function precond = init_jacobi(JD, A, b)
+% Note: Actually it's just D\x and doesn't depend on A,b at all
+function precond = init_jacobi(A, diagA, b)
   % First LU decompose block diagonal for inverses used in Jacobi method
-  nt = size(JD,3);
+  nt = size(diagA,3);
   Dinvs = cell(nt,1);
   for it = 1:nt
-    Dinvs{it} = decomposition(JD(:,:,it), 'lu');
+    Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
   end
   precond = @(x) evaluate_jacobi(Dinvs, A, b, x);
 end
