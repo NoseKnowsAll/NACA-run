@@ -1,4 +1,4 @@
-function [x, iter, residuals] = cpp_gmres(A, b, tol, maxiter, restart, precond, verbose)
+function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precond, verbose)
 
   % Initialization
   n = length(b);
@@ -15,7 +15,9 @@ function [x, iter, residuals] = cpp_gmres(A, b, tol, maxiter, restart, precond, 
   y = zeros(m+1,1); % Solution of LLS problem. x = Q*y
   c = zeros(m,1);
   s = zeros(m,1);
-  x = zeros(n,1);
+  if isempty(x)
+    x = zeros(n,1);
+  end
   residuals = [];
 
   disp(maxiter);

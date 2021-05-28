@@ -34,9 +34,9 @@ function gmres_driver()
   %maxiter = 1; [x, flag, rel_res, iter, residuals] = gmres(Atimes, b, restart, tol, maxiter);
   %disp(flag);
 
-  %[x, iter, residuals] = cpp_gmres(Atimes, b, tol, maxiter, restart, precond, true);
+  %[x, iter, residuals] = cpp_gmres(Atimes, b, [], tol, maxiter, restart, precond, true);
   
-  [x, iter, residuals] = static_gmres(Atimes, b, tol, maxiter, precond, "flexible", true);
+  [x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
   %scalings = 1/areas; [x, iter, residuals] = adaptive_gmres(Atimes, b, scalings, tol, maxiter, precond, "flexible", true);
   %fwritearray("adaptive_res.mat", residuals);

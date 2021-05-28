@@ -6,7 +6,7 @@
 % or (b) right-preconditioned system AP\u = b, u=Px
 % Can specify preconditioning of GMRES method to be "left", "right", or "flexible".
 % Default method: "flexible" => FGMRES.
-function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method, verbose)
+function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, method, verbose)
   
   % Initialization
   if nargin < 7
@@ -28,12 +28,22 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
   if maxiter > m
     maxiter = m;
   end
+  if isempty(x0)
+    x0 = zeros(size(b));
+    b0 = zeros(size(b));
+  else
+    if isa(A, 'function_handle')
+      b0 = A(x0);
+    else
+      b0 = A*x0;
+    end
+  end
   if method == "left"
-    b0 = precond(b);  % Left preconditioning
+    b0 = precond(b-b0);  % Left preconditioning
   elseif method == "right"
-    b0 = b;           % Right preconditioning
+    b0 = b-b0;           % Right preconditioning
   elseif method == "flexible"
-    b0 = b;           % FGMRES
+    b0 = b-b0;           % FGMRES
   end
   beta = norm(b0);
   residual = beta;
@@ -56,6 +66,12 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
   residuals = [];
 
   for n = 1:maxiter
+
+    % TODO: debugging
+    if n == 20
+      fprintf("PAUSING TO DEBUG\n");
+      keyboard;
+    end
 
     % Arnoldi iteration
     if isa(A, 'function_handle')
@@ -102,11 +118,11 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
       y = H\(beta*e1);
       residual2 = norm(beta*e1 - H*y);
       if method == "left"
-	x = Q*y;
+	x = x0 + Q*y;
       elseif method == "right"
-	x = precond(Q*y);
+	x = x0 + precond(Q*y);
       elseif method == "flexible"
-	x = Z*y;
+	x = x0 + Z*y;
       end
       if isa(A, 'function_handle')
 	res = b - A(x);
@@ -141,12 +157,12 @@ function [x, iter, residuals] = static_gmres(A, b, tol, maxiter, precond, method
   iter = n;
   e1 = [1; zeros(iter,1)];
   if method == "left"
-    x = Q * ( H\(beta*e1) );
+    x = x0 + Q * ( H\(beta*e1) );
   elseif method == "right"
     x = Q * ( H\(beta*e1) );
-    x = precond(x);
+    x = x0 + precond(x);
   elseif method == "flexible"
-    x = Z * ( H\(beta*e1) );
+    x = x0 + Z * ( H\(beta*e1) );
   end
   
 end
