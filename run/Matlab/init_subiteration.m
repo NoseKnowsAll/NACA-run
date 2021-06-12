@@ -7,31 +7,37 @@ function precond = init_subiteration(A, diagA, bl_elems, b, nsubiter)
     Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
   end
 
+  fprintf("Subiteration preconditioner with nsubiter=%d, size(bl_elems)=%d\n", nsubiter, length(bl_elems));
+
+  precond_global = @(x) apply_global_preconditioner(Dinvs, x);
+
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   b_bl = extract_subvector(b, nt, nlocal, bl_elems);
   precond_bl = init_jacobi(A_bl, diagA_bl, b_bl);
-  precond = @(x) evaluate_subiteration(A, A_bl, Dinvs, precond_bl, bl_elems, b, b_bl, nsubiter, x);
+  precond = @(x) evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, nsubiter, bl_elems, nt, nlocal, x);
 end
 
 % Subiteration preconditioner is one application of P\x.
 % First apply block diagonal inverse to entire region. x2 = D\x
 % Then consider just the boundary layer elements specified by bl_elems.
-% Compute boundary layer residual r_{bl} = b_{bl}-A_{bl}*x2_{bl}
-% Do inner GMRES iteration to solve A_{bl}*x = r_{bl} with initial guess x2_{bl}
+% Compute boundary layer residual r_{bl} = b_{bl} - A_{bl}*x2_{bl}
+% Perform inner GMRES iteration to solve A_{bl}*x = r_{bl} with initial guess x2_{bl} to get x3
 % Update y according to correction: y = x2 + x3
 % Note: Only valid as a preconditioner within a broader FGMRES iteration
-function y = evaluate_subiteration(A, A_bl, Dinvs, precond_bl, bl_elems, b, b_bl, nsubiter, x)
+function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, nsubiter, bl_elems, nt, nlocal, x)
 
-  nt = size(Dinvs,1);
-  nlocal = Dinvs{1}.MatrixSize(2);
-  
-  x2 = apply_global_preconditioner(Dinvs, x);
+  x2 = precond_global(x);
   if nsubiter <= 0
     y = x2;
     return;
   end
 
-  r = A(x2) - b;
+  % TODO: check if converges changes when we compute true r_bl = b_bl - A_bl(x2_bl)
+  if isa(A, 'function_handle')
+    r = b - A(x2);
+  else
+    r = b - A*x2;
+  end
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
   r_global = pad_subvector(r_bl, nt, nlocal, bl_elems);
   r_nonbl = r - r_global; % r_nonbl contains residual away from region of interest
@@ -40,12 +46,15 @@ function y = evaluate_subiteration(A, A_bl, Dinvs, precond_bl, bl_elems, b, b_bl
   x2_bl = extract_subvector(x2, nt, nlocal, bl_elems);
 
   % TODO: It's not quite clear what this subiteration relative tolerance should be
-  subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
+  %subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
+  % Solving this problem "correctly" should ensure the outer iteration is
+  % independent of the smallest bl element sizes.
+  subtol = 1e-10;
   [y_bl, subiter, residuals] = static_gmres(A_bl, r_bl, x2_bl, subtol, nsubiter, precond_bl, "right", false);
   fprintf("Subiteration took %d iterations to achieve ||res|| = %f\n", subiter, residuals(end));
   y = x2;
   if subiter > 0
-    y = y - pad_subvector(y_bl, nt, nlocal, bl_elems);
+    y = y + pad_subvector(y_bl, nt, nlocal, bl_elems);
   end
   
 end
@@ -60,6 +69,7 @@ function y = apply_global_preconditioner(Dinvs, x)
   for it = 1:nt
     y2(:,it) = Dinvs{it}\y2(:,it);
   end
+  y = reshape(y2, nlocal*nt, 1);
 end
 
 % Extract portion of operator A corresponding to rows specified by bl_elems

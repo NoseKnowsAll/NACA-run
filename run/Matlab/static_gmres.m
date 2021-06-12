@@ -67,12 +67,6 @@ function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, me
 
   for n = 1:maxiter
 
-    % TODO: debugging
-    if n == 20
-      fprintf("PAUSING TO DEBUG\n");
-      keyboard;
-    end
-
     % Arnoldi iteration
     if isa(A, 'function_handle')
       if method == "left"

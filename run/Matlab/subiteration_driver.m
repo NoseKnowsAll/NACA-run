@@ -12,10 +12,13 @@ function subiteration_driver(dt)
   results_dir = wr_dir+"results/"+msh_name+"/";
   mass_dir = results_dir+"mass/";
 
+  fprintf("Running subiteration_driver(dt=%.1e) on mesh %s.\n", dt, msh_name);
+
   J   = freadjac(results_dir);
   Ms  = freadarray(mass_dir+"Dv.mat");
   JD  = freadarray(results_dir+"Dv.mat");
   Dij = freadarray(results_dir+"Dij.mat");
+  %b   = load(wr_dir+"subiter_solvers/b.txt"); % TODO: Temporarily check out bc of other one
   b   = freadarray(mass_dir+"residual.mat");
   b   = b(:);
   bl_elems = freadarray(bl_file);
@@ -26,8 +29,9 @@ function subiteration_driver(dt)
 
   nsubiter = 500;
 
-  %disp(bl_elems);
-  %spy(construct_sparse_matrix(diagA, Dij));
+  %fprintf("Working on condition number...\n");
+  %sparseA = construct_sparse_matrix(diagA, Dij);
+  %disp(cond(full(sparseA)));
   %return;
 
   precond = init_subiteration(Atimes, diagA, bl_elems, b, nsubiter);
@@ -37,9 +41,9 @@ function subiteration_driver(dt)
 
   maxiter = 500;
   restart = 500;
-  tol = 1e-4;
+  tol = 1e-8;
   fprintf("GMRES initialized successfully\n");
-  tstart = tic;
+  t_start = tic;
 
   [x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
   
@@ -58,4 +62,16 @@ function A = construct_sparse_matrix(diagA, Dij)
   Aj = double(Dij(2,:).')+1; % MATLAB is 1-indexed
   Av = [diagA(:)];
   A = sparse(Ai, Aj, Av, ni, ni);
+end
+
+% Test that matvec done in Matlab is same as in C++
+function test_matvec(Atimes, b, mass_dir)
+  Ab1 = Atimes(b);
+  Ab2 = freadarray(mass_dir+"benchmark_matvec.mat");
+  Ab2 = Ab2(:);
+
+  norm(b)
+  norm(Ab1)
+  norm(Ab2)
+  fprintf("diff = %f\n", norm(Ab1-Ab2));
 end
