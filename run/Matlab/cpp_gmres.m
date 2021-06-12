@@ -1,3 +1,10 @@
+% Recreated version of 3DG's C++ GMRES - not adaptive
+% A can be a matrix s.t. A*x = b is the linear system to solve or
+% A can be a function handle s.t. A(x) = A*x = b is linear system to solve
+% precond is a function handle s.t. precond(x) = P\x for use in solving
+% (a) left-preconditioned system P\Au = P\b
+% or (b) right-preconditioned system AP\u = b, u=Px
+% Can comment out lines to make preconditioning of GMRES method to be "left" or "right"
 function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precond, verbose)
 
   % Initialization
@@ -8,7 +15,7 @@ function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precon
   end
   fprintf("Original ||b|| = %7.5f\n", norm(b));
   r = b;
-  r = precond(r); % Left preconditioning
+  %r = precond(r); % Left preconditioning
   nrm2b = norm(r);
   v = zeros(n,m+1); % == Q (orthogonal matrix spanning Krylov subspace)
   h = zeros(m+1,m); % Hessenberg matrix: Organization is different from Per's code
@@ -25,24 +32,16 @@ function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precon
   disp(nrm2b);
 
   disp(b(1:5));
-  test = precond(b);
-  disp(test(1:5));
   disp("Beginning outer iteration");
 
   % Outer iteration
   for j = 1:maxiter/m
     if isa(A, 'function_handle')
-      r = A(x);
-      disp(r(1:5));
-      r = r - b;
-      disp(r(1:5));
-      r = precond(r);
-      disp(r(1:5));
       %r = precond(A(x)-b); % Left preconditioning
-      %r = A(precond(x)-b); % Right preconditioning
+      r = A(precond(x))-b; % Right preconditioning
     else
-      r = precond(A*x-b); % Left preconditioning
-      %r = A*(precond(x)-b); % Right preconditioning
+      %r = precond(A*x-b); % Left preconditioning
+      r = A*(precond(x))-b; % Right preconditioning
     end
     beta = norm(r);
     v(:,1) = r/beta;
@@ -66,11 +65,11 @@ function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precon
       vi = v(:,i);
       v(:,i+1) = v(:,i);
       if isa(A, 'function_handle')
-	v(:,i+1) = precond(A(v(:,i+1))); % Left preconditioning
-	%v(:,i+1) = A(precond(v(:,i+1))); % Right preconditioning
+	%v(:,i+1) = precond(A(v(:,i+1))); % Left preconditioning
+	v(:,i+1) = A(precond(v(:,i+1))); % Right preconditioning
       else
-	v(:,i+1) = precond(A*v(:,i+1)); % Left preconditioning
-	%v(:,i+1) = A*precond(v(:,i+1)); % Right preconditioning
+	%v(:,i+1) = precond(A*v(:,i+1)); % Left preconditioning
+	v(:,i+1) = A*precond(v(:,i+1)); % Right preconditioning
       end
       fprintf("v_{i+1}(1) = %7.5e ", (v(1,i+1)));
       h(1:i,i) = v(:,1:i)'*v(:,i+1);
@@ -104,9 +103,13 @@ function [x, iter, residuals] = cpp_gmres(A, b, x, tol, maxiter, restart, precon
     
     disp("y=");
     disp(y(1:5));
-    x = x - v(:,1:i-1)*y(1:i-1);
+    %x = x - v(:,1:i-1)*y(1:i-1); % Left preconditioning
+    temp = -v(:,1:i-1)*y(1:i-1); % Right preconditioning
+    temp = precond(temp);        % Right preconditioning
+    x = x + temp;
     disp("x=");
     disp(x(1:5));
+    
     residuals = [residuals abs(y(i))/nrm2b];
     if abs(y(i)) < tol*nrm2b || j == floor(maxiter/m) - 1
       break;
