@@ -101,7 +101,9 @@ function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, me
 
     % Convergence tests
     if hN < 1e-8
-      fprintf("it: %4d, converging because hN=%f is close to 0\n", n, hN);
+      if verbose
+	fprintf("it: %4d, converging because hN=%f is close to 0\n", n, hN);
+      end
       break;
     end
     % Efficient computation of residual
@@ -135,7 +137,9 @@ function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, me
     end
     residuals = [residuals residual];
     if residual < tol
-      fprintf("it: %4d, converging because residual %f < tol %f\n", n, residual, tol);
+      if verbose
+	fprintf("it: %4d, converging because residual %f < tol %f\n", n, residual, tol);
+      end
       break;
     end
 
