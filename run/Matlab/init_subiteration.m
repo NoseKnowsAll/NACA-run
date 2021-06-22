@@ -1,14 +1,19 @@
 % Creates a subiteration preconditioner to solve A\b
-function precond = init_subiteration(A, diagA, bl_elems, b, nsubiter)
+function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, nsubiter)
   nt = size(diagA,3);
   nlocal = size(diagA,2);
-  Dinvs = cell(nt,1);
-  for it = 1:nt
-    Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
-  end
-
   fprintf("Subiteration preconditioner with nsubiter=%d, size(bl_elems)=%d\n", nsubiter, length(bl_elems));
-
+  
+  Dinvs = cell(nt,1);
+  if global_precond_type == "jacobi"
+    for it = 1:nt
+      Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
+    end
+  elseif global_precond_type == "mass_inv"
+    for it = 1:nt
+      Dinvs{it} = decomposition(Ms(:,:,it), 'lu');
+    end
+  end
   precond_global = @(x) apply_global_preconditioner(Dinvs, x);
 
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);

@@ -1,10 +1,27 @@
-function subiteration_driver(dt)
+function subiteration_driver(dt, nsubiter, global_precond_type, h, p)
 
-  if nargin < 1
-    dt = 1e-3;
+  if nargin < 5
+    p = 3;
+    if nargin < 4
+      h = 1e-3;
+      if nargin < 3
+	global_precond_type = "jacobi";
+	if nargin < 2
+	  nsubiter = 500;
+	  if nargin < 1
+	    dt = 1e-3;
+	  end
+	end
+      else
+	if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
+	  fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
+	  return;
+	end
+      end
+    end
   end
   
-  msh_name = "aniso_p3_h1e-03";
+  msh_name = sprintf("aniso_p%d_h%.0e", p, h);
   wr_dir = "/scratch/mfranco/2021/wr-les-solvers/";
   msh_dir = wr_dir+"meshes/";
   bl_file = msh_dir+msh_name+"bl.mat";
@@ -18,23 +35,21 @@ function subiteration_driver(dt)
   Ms  = freadarray(mass_dir+"Dv.mat");
   JD  = freadarray(results_dir+"Dv.mat");
   Dij = freadarray(results_dir+"Dij.mat");
-  %b   = load(wr_dir+"subiter_solvers/b.txt"); % TODO: Temporarily check out bc of other one
   b   = freadarray(mass_dir+"residual.mat");
   b   = b(:);
+
   bl_elems = freadarray(bl_file);
   bl_elems = uint64(bl_elems(:));
 
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
   diagA = Ms-dt*JD;
 
-  nsubiter = 500;
-
   %fprintf("Working on condition number...\n");
   %sparseA = construct_sparse_matrix(diagA, Dij);
   %disp(cond(full(sparseA)));
   %return;
 
-  precond = init_subiteration(Atimes, diagA, bl_elems, b, nsubiter);
+  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, nsubiter);
   %precond = init_jacobi(Atimes, diagA, b);
   %precond = init_mass_inv(Ms);
   %precond = @(x) x;
