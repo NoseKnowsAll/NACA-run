@@ -29,7 +29,7 @@ function subiteration_driver(dt, nsubiter, global_precond_type, h, p)
   results_dir = wr_dir+"results/"+msh_name+"/";
   mass_dir = results_dir+"mass/";
 
-  fprintf("Running subiteration_driver(dt=%.1e) on mesh %s.\n", dt, msh_name);
+  fprintf("Running subiteration_driver(dt=%.1e) on mesh %s, nsubiter=%d.\n", dt, msh_name, nsubiter);
 
   J   = freadjac(results_dir);
   Ms  = freadarray(mass_dir+"Dv.mat");

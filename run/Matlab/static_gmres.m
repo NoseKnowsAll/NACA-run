@@ -48,15 +48,15 @@ function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, me
   beta = norm(b0);
   residual = beta;
   tol = tol*beta;
-  if verbose
+  %if verbose
     if method == "left"
-      fprintf("Static GMRES, reaching preconditioned tolerance %8.5f in %d maximum iterations.\n", tol, maxiter);
+      fprintf("Static GMRES, reaching preconditioned tolerance %8.2e in %d maximum iterations.\n", tol, maxiter);
     elseif method == "right"
-      fprintf("Static GMRES, reaching absolute tolerance %8.5f in %d maximum iterations.\n", tol, maxiter);
+      fprintf("Static GMRES, reaching absolute tolerance %8.2e in %d maximum iterations.\n", tol, maxiter);
     elseif method == "flexible"
-      fprintf("Flexible GMRES, reaching absolute tolerance %8.5f in %d maximum iterations.\n", tol, maxiter);
+      fprintf("Flexible GMRES, reaching absolute tolerance %8.2e in %d maximum iterations.\n", tol, maxiter);
     end
-  end
+  %end
   Q = b0/beta;
   omegaN = 1;
   H = [];
