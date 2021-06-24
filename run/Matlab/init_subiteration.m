@@ -26,8 +26,8 @@ end
 % First apply block diagonal inverse to entire region. x2 = D\x
 % Then consider just the boundary layer elements specified by bl_elems.
 % Compute boundary layer residual r_{bl} = b_{bl} - A_{bl}*x2_{bl}
-% Perform inner GMRES iteration to solve A_{bl}*x = r_{bl} with initial guess x2_{bl} to get x3
-% Update y according to correction: y = x2 + x3
+% Perform inner GMRES iteration to solve A_{bl}*e_{bl} = r_{bl} with initial guess x2_{bl} to get e_{bl}
+% Update y according to correction: y = x2 + e_{bl}
 % Note: Only valid as a preconditioner within a broader FGMRES iteration
 function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, nsubiter, bl_elems, nt, nlocal, x)
 
@@ -37,7 +37,7 @@ function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl,
     return;
   end
 
-  % TODO: check if converges changes when we compute true r_bl = b_bl - A_bl(x2_bl)
+  % TODO: check if convergence changes when we compute true r_bl = b_bl - A_bl(x2_bl)
   if isa(A, 'function_handle')
     r = b - A(x2);
   else
@@ -51,16 +51,27 @@ function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl,
   x2_bl = extract_subvector(x2, nt, nlocal, bl_elems);
 
   % TODO: It's not quite clear what this subiteration relative tolerance should be
-  %subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
+  fprintf("Norms to consider: ||r||=%8.2e, ||r_nonbl||=%8.2e, ||b_nonbl||=%8.2e, ||r_bl||=%8.2e, ||b_bl||=%8.2e\n", ...
+	 norm(r), norm(r_nonbl), norm(b_nonbl), norm(r_bl), norm(b_bl));
+  subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
+  subtol = subtol/10000;
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes.
   subtol = 1e-10;
-  [y_bl, subiter, residuals] = static_gmres(A_bl, r_bl, x2_bl, subtol, nsubiter, precond_bl, "right", false);
+  [e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, x2_bl, subtol, nsubiter, precond_bl, "right", false);
   fprintf("Subiteration took %d iterations to achieve ||res|| = %f\n", subiter, residuals(end));
   y = x2;
   if subiter > 0
-    y = y + pad_subvector(y_bl, nt, nlocal, bl_elems);
+    y = y + pad_subvector(e_bl, nt, nlocal, bl_elems);
   end
+
+  % TODO: Remove this check
+  if isa(A, 'function_handle')
+    r = b-A(y);
+  else
+    r = b-A*y;
+  end
+  fprintf("After preconditioner, ||r||=%8.2e\n", norm(r));
   
 end
 
