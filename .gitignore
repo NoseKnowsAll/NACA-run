@@ -2,6 +2,7 @@
 timing2d
 benchmark_dgops
 eigenvalue
+initMatlab
 sweep_dt
 sweep_dt_bl
 
