@@ -1,15 +1,19 @@
-function subiteration_driver(dt, nsubiter, global_precond_type, h, p)
+% From a set of matrices saved relative to wr_dir, named msh_name, solve Ax=b with FGMRES preconditioned with subiteration
+function subiteration_driver(dt, tol, nsubiter, global_precond_type, h, p)
 
-  if nargin < 5
+  if nargin < 6
     p = 3;
-    if nargin < 4
+    if nargin < 5
       h = 1e-3;
-      if nargin < 3
+      if nargin < 4
 	global_precond_type = "jacobi";
-	if nargin < 2
+	if nargin < 3
 	  nsubiter = 500;
-	  if nargin < 1
-	    dt = 1e-3;
+	  if nargin < 2
+	    tol = 1e-8;
+	    if nargin < 1
+	      dt = 1e-3;
+	    end
 	  end
 	end
       else
@@ -49,14 +53,13 @@ function subiteration_driver(dt, nsubiter, global_precond_type, h, p)
   %disp(cond(full(sparseA)));
   %return;
 
-  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, nsubiter);
+  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter);
   %precond = init_jacobi(Atimes, diagA, b);
   %precond = init_mass_inv(Ms);
   %precond = @(x) x;
 
   maxiter = 500;
   restart = 500;
-  tol = 1e-8;
   fprintf("GMRES initialized successfully\n");
   t_start = tic;
 

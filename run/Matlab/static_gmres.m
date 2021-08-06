@@ -9,11 +9,11 @@
 function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, method, verbose)
   
   % Initialization
-  if nargin < 7
+  if nargin < 8
     verbose = false;
-    if nargin < 6
+    if nargin < 7
       method = "flexible";
-      if nargin < 5
+      if nargin < 6
 	precond = @(x) x;
       end
     else
@@ -132,13 +132,13 @@ function [x, iter, residuals] = static_gmres(A, b, x0, tol, maxiter, precond, me
       elseif method == "flexible"
 	residual3 = norm(res);
       end
-      fprintf("it: %4d, hN = %8.6f, res = %7.5f\n", n, hN, residual/beta);
-      fprintf("||res1|| = %f, ||res2|| = %f, ||res3|| = %f\n", residual, residual2, residual3);
+      fprintf("it: %4d, hN = %8.6f, res = %8.2e\n", n, hN, residual/beta);
+      fprintf("||res1|| = %8.2e, ||res2|| = %8.2e, ||res3|| = %8.2e\n", residual, residual2, residual3);
     end
     residuals = [residuals residual];
     if residual < tol
       if verbose
-	fprintf("it: %4d, converging because residual %f < tol %f\n", n, residual, tol);
+	fprintf("it: %4d, converging because residual %8.2e < tol %8.2e\n", n, residual, tol);
       end
       break;
     end

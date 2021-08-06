@@ -1,8 +1,8 @@
 % Creates a subiteration preconditioner to solve A\b
-function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, nsubiter)
+function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter)
   nt = size(diagA,3);
   nlocal = size(diagA,2);
-  fprintf("Subiteration preconditioner with nsubiter=%d, size(bl_elems)=%d\n", nsubiter, length(bl_elems));
+  fprintf("Subiteration preconditioner with nsubiter=%d, nt=%d, size(bl_elems)=%d\n", nsubiter, nt, length(bl_elems));
   
   Dinvs = cell(nt,1);
   if global_precond_type == "jacobi"
@@ -19,7 +19,10 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   b_bl = extract_subvector(b, nt, nlocal, bl_elems);
   precond_bl = init_jacobi(A_bl, diagA_bl, b_bl);
-  precond = @(x) evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, nsubiter, bl_elems, nt, nlocal, x);
+  precond = @(x) evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, tol, nsubiter, bl_elems, nt, nlocal, x);
+
+  global outer_iteration;
+  outer_iteration = 0;
 end
 
 % Subiteration preconditioner is one application of P\x.
@@ -29,9 +32,14 @@ end
 % Perform inner GMRES iteration to solve A_{bl}*e_{bl} = r_{bl} with initial guess x2_{bl} to get e_{bl}
 % Update y according to correction: y = x2 + e_{bl}
 % Note: Only valid as a preconditioner within a broader FGMRES iteration
-function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, nsubiter, bl_elems, nt, nlocal, x)
+function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl, tol, nsubiter, bl_elems, nt, nlocal, x)
 
   x2 = precond_global(x);
+  global outer_iteration;
+  outer_iteration = outer_iteration + 1;
+  %if outer_iteration > 8 % TODO: ramped subiteration
+  %  nsubiter = 0;
+  %end
   if nsubiter <= 0
     y = x2;
     return;
@@ -51,15 +59,20 @@ function y = evaluate_subiteration(A, A_bl, b, b_bl, precond_global, precond_bl,
   x2_bl = extract_subvector(x2, nt, nlocal, bl_elems);
 
   % TODO: It's not quite clear what this subiteration relative tolerance should be
-  fprintf("Norms to consider: ||r||=%8.2e, ||r_nonbl||=%8.2e, ||b_nonbl||=%8.2e, ||r_bl||=%8.2e, ||b_bl||=%8.2e\n", ...
-	 norm(r), norm(r_nonbl), norm(b_nonbl), norm(r_bl), norm(b_bl));
-  subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
-  subtol = subtol/10000;
+  %fprintf("Norms to consider: ||r||=%8.2e, ||r_nonbl||=%8.2e, ||b_nonbl||=%8.2e, ||r_bl||=%8.2e, ||b_bl||=%8.2e\n", ...
+	% norm(r), norm(r_nonbl), norm(b_nonbl), norm(r_bl), norm(b_bl));
+  %subtol = (norm(r_nonbl)/norm(b_nonbl)) / (norm(r_bl)/norm(b_bl));
+  %subtol = subtol/10000;
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes.
-  subtol = 1e-10;
+  subtol = 1e-6;
+  %if outer_iteration > 4 % TODO: ramped subiteration
+  %  subtol = tol*1e2;
+  %else
+  %  subtol = tol*1e-2;
+  %end
   [e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, x2_bl, subtol, nsubiter, precond_bl, "right", false);
-  fprintf("Subiteration took %d iterations to achieve ||res|| = %f\n", subiter, residuals(end));
+  fprintf("Subiteration took %d iterations to achieve ||res|| = %8.2e\n", subiter, residuals(end));
   y = x2;
   if subiter > 0
     y = y + pad_subvector(e_bl, nt, nlocal, bl_elems);
