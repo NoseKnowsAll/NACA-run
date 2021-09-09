@@ -37,23 +37,6 @@ function naca_subiteration_driver(dt, tol, nsubiter, global_precond_type)
   bl_elems = freadarray(bl_file);
   bl_elems = uint64(bl_elems(:));
 
-  Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  diagA = Ms-dt*JD;
-
-  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter);
-  %precond = init_jacobi(Atimes, diagA, b);
-  %precond = init_mass_inv(Ms);
-
-  maxiter = 500;
-  restart = 500;
-  fprintf("GMRES initialized successfully\n");
-  t_start = tic;
-
-  [x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
-
-  t_gmres = toc(t_start);
-  fprintf("total iterations: %d\n", iter);
-  fprintf("time: %6.2f\n", t_gmres);
-  fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
+  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type);
   
 end

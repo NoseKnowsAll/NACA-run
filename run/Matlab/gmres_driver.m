@@ -21,7 +21,7 @@ function gmres_driver()
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
   diagA = Ms-dt*JD;
   
-  precond = init_jacobi(Atimes, diagA, b);
+  precond = init_jacobi(diagA);
   %precond = init_mass_inv(Ms);
   %precond = @(x) x;
   
@@ -36,9 +36,10 @@ function gmres_driver()
 
   %[x, iter, residuals] = cpp_gmres(Atimes, b, [], tol, maxiter, restart, precond, true);
   
-  [x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
+  %[x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
   %[x, iter, residuals] = wiki_gmres(Atimes, b, tol, maxiter, precond, true);
   %scalings = 1/areas; [x, iter, residuals] = adaptive_gmres(Atimes, b, scalings, tol, maxiter, precond, "flexible", true);
+  [x, iter, residuals] = restarted_fgmres(Atimes, b, [], tol, restart, maxiter, precond, true);
   %fwritearray("adaptive_res.mat", residuals);
 
   t_gmres = toc(t_start);
@@ -98,7 +99,7 @@ function test_jacobi(results_dir, mass_dir, dt, b)
   Atimes  = @(x) time_dependent_jacobian(J, Ms, dt, x);
 
   diagA = Ms-dt*JD;
-  precond = init_jacobi(Atimes, diagA, b);
+  precond = init_jacobi(diagA);
   
   x3 = freadarray(mass_dir+"benchmark_jacobi.mat");
   x3 = x3(:);
@@ -134,7 +135,7 @@ function test_diagonal_theory(results_dir, mass_dir, dt, b)
   Atimes  = @(x) time_dependent_jacobian(J, Ms, dt, x);
 
   diagA = Ms-dt*JD;
-  precond = init_jacobi(Atimes, diagA, b);
+  precond = init_jacobi(diagA);
 
   x = b;
   x2 = precond(Atimes(x));
@@ -170,7 +171,7 @@ function test_backslash(results_dir, mass_dir, dt, b)
   Atimes  = @(x)time_dependent_jacobian(J, Ms, dt, x);
   diagA = Ms-dt*JD;
   
-  precond = init_jacobi(Atimes, diagA, b);
+  precond = init_jacobi(diagA);
   %precond = @(x) x;
 
   %x = A\b;

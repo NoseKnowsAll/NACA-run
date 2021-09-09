@@ -1,38 +1,25 @@
 % Initialize Jacobi method for use as a preconditioner
-% Note: Actually it's just D\x and doesn't depend on A,b at all
-function precond = init_jacobi(A, diagA, b)
+% Note: Actually it's just block-diagonal D\rhs
+function precond = init_jacobi(diagA)
   % First LU decompose block diagonal for inverses used in Jacobi method
   nt = size(diagA,3);
   Dinvs = cell(nt,1);
   for it = 1:nt
     Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
   end
-  precond = @(x) evaluate_jacobi(Dinvs, A, b, x);
+  precond = @(rhs) evaluate_jacobi(Dinvs, rhs);
 end
 
 % Evaluate block diagonal Jacobi method applied to vector x
-% y = x + D\(b-A*x) == D\(b-(L+U)x)
-% weighted = true => y = x + 2/3*D\(b-A*x)
-function y = evaluate_jacobi(Dinvs, A, b, x, weighted)
-
-  % TODO: Understand why dgitsolve MGPC has this at the beginning for all preconditioners...
-  b = x;
-  x = zeros(size(x));
-  % Basically just transforms this method to y = D\x
-  
-  if nargin < 5
-    weighted = false;
-  end
+% x = D\rhs
+function x = evaluate_jacobi(Dinvs, rhs)
   nt = size(Dinvs,1);
   nlocal = Dinvs{1}.MatrixSize(2);
-  y1 = b - A(x);
-  y2 = reshape(y1, nlocal, nt);
+  
+  x2 = zeros(nlocal, nt);
+  rhs2 = reshape(rhs, nlocal, nt);
   for it = 1:nt
-    y2(:,it) = Dinvs{it}\y2(:,it);
+    x2(:,it) = Dinvs{it}\rhs2(:,it);
   end
-  if weighted
-    y2 = (2.0/3.0)*y2; % Weighted Jacobi method, only for MGPC
-  end
-  y = reshape(y2, nlocal*nt, 1);
-  y = y+x;
+  x = reshape(x2, nlocal*nt, 1);
 end
