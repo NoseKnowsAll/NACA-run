@@ -35,7 +35,7 @@ end
 function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, bl_elems, nt, nlocal, rhs)
 
   x = precond_global(rhs);
-  %test_mfem(x, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_step0.mat");
+  
   global outer_iteration;
   outer_iteration = outer_iteration + 1;
   %if outer_iteration > 8 % TODO: ramped subiteration
@@ -45,10 +45,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   if nsubiter <= 0
     return;
   end
-
-  if outer_iteration == 1
-    test_mfem(A(x), "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_Ax.mat");
-  end
   
   % TODO: check if convergence changes when we compute true r_bl = rhs_bl - A_bl(x_bl)
   if isa(A, 'function_handle')
@@ -56,13 +52,8 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   else
     r = rhs - A*x;
   end
-  if outer_iteration == 1
-    test_mfem(-r, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_step1.mat");
-  end
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
-  if outer_iteration == 1
-    test_mfem(-r_bl, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_step1bl.mat");
-  end
+
   %r_global = pad_subvector(r_bl, nt, nlocal, bl_elems);
   %r_nonbl = r - r_global; % r_nonbl contains residual away from region of interest
   %rhs_bl = extract_subvector(rhs, nt, nlocal, bl_elems);
@@ -72,36 +63,22 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
 
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes. TODO: not quite clear what subtol should be
-  subtol = 1e-3; % TODO: Pure subiteration
+  subtol = 1e-5; % TODO: Pure subiteration
   %if outer_iteration > 4 % TODO: ramped subiteration
   %  subtol = tol*1e2;
   %else
   %  subtol = tol*1e-2;
   %end
-  % TODO: Remove linear iterative solver and go back to GMRES
 
-  if outer_iteration == 1
-    test = precond_bl(r_bl);
-    test_mfem(-test, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_precond.mat");
-    
-    test = A_bl(x_bl);
-    test_mfem(test, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_Aloc.mat");
-  end
+  % Initial guess -x_bl simply to align with MFEM solving negative of this problem
+  %[e_bl, subiter, residuals] = restarted_fgmres(A_bl, r_bl, -x_bl, subtol, nsubiter, nsubiter, precond_bl, false);
+  [e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, -x_bl, subtol, nsubiter, precond_bl, "right", false);
 
-  [e_bl, subiter, residuals] = restarted_fgmres(A_bl, r_bl, x_bl, subtol, nsubiter, nsubiter, precond_bl, true);
-  %[e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, x_bl, subtol, nsubiter, precond_bl, "right", false);
-  if outer_iteration == 1
-    test_mfem(-e_bl, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_step2.mat");
-  end
   %iteration = init_jacobi_method(A_bl, diagA_bl, r_bl);
   %[e_bl,subiter,residuals] = iterative_method(A_bl, r_bl, x_bl, subtol, nsubiter, iteration, true);
   fprintf("Subiteration took %d iterations to achieve ||res|| = %8.2e\n", subiter, residuals(end));
   if subiter > 0
     x = x + pad_subvector(e_bl, nt, nlocal, bl_elems);
-  end
-
-  if outer_iteration == 1
-    test_mfem(x, "/home/mfranco/scratch/2021/wr-les-solvers/results/temp/mult_step3.mat");
   end
 
   % TODO: Remove this check
@@ -166,26 +143,4 @@ function x = pad_subvector(x_bl, nt, nlocal, bl_elems, pad_val)
   end
   x_shape(:,bl_elems) = x_bl_shape(:,:);
   x = reshape(x_shape, nlocal*nt, 1);
-end
-
-
-
-
-% Test that matvec done in Matlab is same as in MFEM C++
-function test_matvec(Atimes, b, mass_dir)
-  Ab1 = Atimes(b);
-  Ab2 = load(mass_dir+"benchmark_matvec.mat", "-ascii");
-
-  norm(b)
-  norm(Ab1)
-  norm(Ab2)
-  fprintf("diff = %8.3e\n", norm(Ab1-Ab2));
-end
-
-% Test that vector in Matlab is same as in MFEM C++
-function test_mfem(v, mfem_file)
-  v2 = load(mfem_file, "-ascii");
-
-  fprintf("  Testing MFEM: %8.3e | %8.3e\n", norm(v), norm(v2));
-  fprintf("  Testing MFEM: diff = %8.3e\n", norm(v-v2));
 end

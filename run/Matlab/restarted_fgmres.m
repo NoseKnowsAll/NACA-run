@@ -46,6 +46,10 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
   converged = false;
 
   j = 0;
+  if verbose
+    fprintf("it: %4d/%4d, ||res|| = %8.3e\n", j, restart, beta);
+  end
+  
   while j < maxiter
     v(:,1) = r/beta;
     s = zeros(m+1,1);
@@ -63,7 +67,7 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
       else
 	r = A*Z(:,i);
       end
-      for k = 1:i %TODO: Is this i+1?
+      for k = 1:i
 	H(k,i) = r'*v(:,k);
 	r = r - H(k,i)*v(:,k);
       end
@@ -72,20 +76,20 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
 
       % Apply Givens rotation to H matrix
       [H(1:i+1,i), s(i), s(i+1), cs(i), sn(i)] = apply_givens_rotation(H(1:i+1,i), s(1:i+1), cs, sn, i);
-      residual  = abs(s(i+1)); %abs(beta(n+1))/b_norm;
+      residual  = abs(s(i+1));
       residuals = [residuals residual];
       if verbose
-	fprintf("it: %4d/%4d, ||res|| = %8.2e\n", j, restart, residual);
+	fprintf("it: %4d/%4d, ||res|| = %8.3e\n", j, restart, residual);
       end
 
       % Check convergence
       if residual <= final_norm
 	% TODO: Will's version immediately quits based on first i+1 values?
-	x = x + Z(:,1:i) * (H(1:i+1,1:i)\s(1:i+1));
+	x = x + Z(:,1:i) * (H(1:i,1:i)\s(1:i));
 	converged = true;
 	iter = j;
 	if verbose
-	  fprintf("it: %4d/%4d, converging because residual %8.2e < tol %8.2e\n", j, restart, residual, final_norm);
+	  fprintf("it: %4d/%4d, converging because residual %8.3e < tol %8.3e\n", j, restart, residual, final_norm);
 	end
 	return;
       end
@@ -93,7 +97,7 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
     end
 
     % Restart FGMRES for the next restarted FGMRES iteration
-    x = x + Z(:,1:i-1) * (H(1:i,1:i-1)\s(1:i));
+    x = x + Z(:,1:i) * (H(1:i,1:i)\s(1:i));
     if isa(A, 'function_handle')
       r = b - A(x);
     else
@@ -130,6 +134,7 @@ function [h, q] = arnoldi(A, Q, precond, n)
 end
 
 % Create a Givens rotation matrix based on 2 values so that G*[v1; v2] will zero out v2
+% Note: Not as robust as the implemenation in MFEM, but should result in "identical" rotations
 function [cs, sn] = givens_rotation(v1, v2)
   denom = sqrt(v1^2 + v2^2);
   cs = v1/denom;
