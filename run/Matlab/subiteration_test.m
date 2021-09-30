@@ -1,8 +1,9 @@
 % Now that information is initialized, actually test FGMRES preconditioned by subiterations
 function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type)
 
-  Atimes = @(x)mfem_time_dependent_jacobian(J, Ms, dt, x);
-  diagA = Ms/dt-JD;
+  % For testing MFEM: should be mfem_time_dependent_jacobian
+  Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
+  diagA = Ms-dt*JD;
 
   %fprintf("Working on condition number...\n");
   %sparseA = construct_sparse_matrix(diagA, Dij);

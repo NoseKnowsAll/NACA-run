@@ -38,7 +38,7 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   
   global outer_iteration;
   outer_iteration = outer_iteration + 1;
-  %if outer_iteration > 8 % TODO: ramped subiteration
+  %if outer_iteration <= 6 || outer_iteration > 8 % TODO: ramped subiteration
   %  nsubiter = 0;
   %end
   %nsubiter = 0; % TODO: only global preconditioner
@@ -52,6 +52,10 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   else
     r = rhs - A*x;
   end
+
+  %iter = num2str(outer_iteration, "%03.f");
+  %res_file = sprintf("../results/Matlab/residual_it%s.mat", iter);
+  %fwritearray(res_file, r);
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
 
   %r_global = pad_subvector(r_bl, nt, nlocal, bl_elems);
@@ -63,11 +67,17 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
 
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes. TODO: not quite clear what subtol should be
-  subtol = 1e-5; % TODO: Pure subiteration
+
+  subtol = compute_subtol(r, nt, nlocal, bl_elems);
+  fprintf("subtol computed to be %8.3e\n", subtol);
+  if subtol == 0
+    return
+  end
+  %subtol = 1e-1; % TODO: Pure subiteration
   %if outer_iteration > 4 % TODO: ramped subiteration
-  %  subtol = tol*1e2;
+  %  subtol = tol;
   %else
-  %  subtol = tol*1e-2;
+  %  subtol = tol*1e-4;
   %end
 
   % Initial guess -x_bl simply to align with MFEM solving negative of this problem
@@ -80,14 +90,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   if subiter > 0
     x = x + pad_subvector(e_bl, nt, nlocal, bl_elems);
   end
-
-  % TODO: Remove this check
-  %if isa(A, 'function_handle')
-  %  r = rhs - A(x);
-  %else
-  %  r = rhs - A*x;
-  %end
-  %fprintf("After preconditioner, ||r||=%8.2e\n", norm(r));
   
 end
 
@@ -143,4 +145,22 @@ function x = pad_subvector(x_bl, nt, nlocal, bl_elems, pad_val)
   end
   x_shape(:,bl_elems) = x_bl_shape(:,:);
   x = reshape(x_shape, nlocal*nt, 1);
+end
+
+% Compute the subtolerance needed to solve inner problem.
+% After solve, this tolerance ensures element with least improvement in subregion
+% will be at least as accurate as element with least improvement in rest of domain.
+function subtol = compute_subtol(r, nt, nlocal, bl_elems)
+  r2 = reshape(r, nlocal, nt);
+  norms = vecnorm(r2);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+  least_improvement_bl = min(norms(bl_elems));
+  least_improvement_nonbl = min(norms(nonbl_elems));
+  fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
+  fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
+  if least_improvement_nonbl < least_improvement_bl
+    subtol = 0; % skip GMRES completely
+  else
+    subtol = least_improvement_bl/least_improvement_nonbl;
+  end
 end
