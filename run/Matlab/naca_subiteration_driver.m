@@ -1,14 +1,17 @@
 % Solves the linear Ax=b problem from the NACA airfoil N-S solver
-function naca_subiteration_driver(dt, tol, nsubiter, global_precond_type)
+function naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type)
 
-  if nargin < 4
+  if nargin < 5
     global_precond_type = "jacobi";
-    if nargin < 3
-      nsubiter = 500;
-      if nargin < 2
-	tol = 1e-8;
-	if nargin < 1
-	  dt = 1e-3;
+    if nargin < 4
+      subtol_factor = 1;
+      if nargin < 3
+	nsubiter = 500;
+	if nargin < 2
+	  tol = 1e-8;
+	  if nargin < 1
+	    dt = 1e-3;
+	  end
 	end
       end
     end
@@ -37,6 +40,6 @@ function naca_subiteration_driver(dt, tol, nsubiter, global_precond_type)
   bl_elems = freadarray(bl_file);
   bl_elems = uint64(bl_elems(:));
 
-  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type);
+  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type);
   
 end

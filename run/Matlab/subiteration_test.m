@@ -1,5 +1,5 @@
 % Now that information is initialized, actually test FGMRES preconditioned by subiterations
-function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type)
+function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type)
 
   % For testing MFEM: should be mfem_time_dependent_jacobian
   Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
@@ -10,7 +10,7 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, globa
   %disp(cond(full(sparseA)));
   %return;
 
-  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter);
+  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor);
   %precond = init_jacobi(diagA);
   %precond = init_mass_inv(Ms);
   %precond = @(x) x;

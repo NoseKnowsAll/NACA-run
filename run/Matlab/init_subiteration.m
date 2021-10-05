@@ -1,5 +1,5 @@
 % Creates a subiteration preconditioner to solve A\b
-function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter)
+function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor)
   nt = size(diagA,3);
   nlocal = size(diagA,2);
   fprintf("Subiteration preconditioner with nsubiter=%d, nt=%d, size(bl_elems)=%d\n", nsubiter, nt, length(bl_elems));
@@ -19,10 +19,12 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   
   precond_bl = init_jacobi(diagA_bl);
-  precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, bl_elems, nt, nlocal, rhs);
+  precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, bl_elems, nt, nlocal, rhs);
   
   global outer_iteration;
+  global inner_iterations;
   outer_iteration = 0;
+  inner_iterations = 0;
 end
 
 % Subiteration preconditioner is one application of x = P\rhs.
@@ -32,7 +34,7 @@ end
 % Perform inner GMRES iteration to solve A_{bl}*e_{bl} = r_{bl} with initial guess x_{bl} to get e_{bl}
 % Update x according to correction: x = x + e_{bl}
 % Note: Only valid as a preconditioner within a broader FGMRES iteration
-function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, bl_elems, nt, nlocal, rhs)
+function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, bl_elems, nt, nlocal, rhs)
 
   x = precond_global(rhs);
   
@@ -68,8 +70,8 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes. TODO: not quite clear what subtol should be
 
-  subtol = compute_subtol(r, nt, nlocal, bl_elems);
-  fprintf("subtol computed to be %8.3e\n", subtol);
+  subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
+  fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
     return
   end
@@ -88,6 +90,8 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   %[e_bl,subiter,residuals] = iterative_method(A_bl, r_bl, x_bl, subtol, nsubiter, iteration, true);
   fprintf("Subiteration took %d iterations to achieve ||res|| = %8.2e\n", subiter, residuals(end));
   if subiter > 0
+    global inner_iterations;
+    inner_iterations = inner_iterations + subiter;
     x = x + pad_subvector(e_bl, nt, nlocal, bl_elems);
   end
   
@@ -158,8 +162,8 @@ function subtol = compute_subtol(r, nt, nlocal, bl_elems)
   least_improvement_nonbl = min(norms(nonbl_elems));
   fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
   fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
-  if least_improvement_nonbl < least_improvement_bl
-    subtol = 0; % skip GMRES completely
+  if least_improvement_bl >= least_improvement_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
   else
     subtol = least_improvement_bl/least_improvement_nonbl;
   end
