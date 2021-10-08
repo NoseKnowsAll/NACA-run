@@ -23,8 +23,10 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   
   global outer_iteration;
   global inner_iterations;
+  global percent_subregion;
   outer_iteration = 0;
   inner_iterations = 0;
+  percent_subregion = length(bl_elems)/nt;
 end
 
 % Subiteration preconditioner is one application of x = P\rhs.
@@ -68,7 +70,7 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   x_bl = extract_subvector(x, nt, nlocal, bl_elems);
 
   % Solving this problem "correctly" should ensure the outer iteration is
-  % independent of the smallest bl element sizes. TODO: not quite clear what subtol should be
+  % independent of the smallest bl element sizes.
 
   subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
@@ -158,8 +160,11 @@ function subtol = compute_subtol(r, nt, nlocal, bl_elems)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
   nonbl_elems = setdiff(1:nt, bl_elems);
-  least_improvement_bl = min(norms(bl_elems));
-  least_improvement_nonbl = min(norms(nonbl_elems));
+  nelem_worst = 10; % Number of worst elements to consider in both subregion and outer region
+  least_improvement_bls    = mink(norms(bl_elems)   , nelem_worst);
+  least_improvement_nonbls = mink(norms(nonbl_elems), nelem_worst);
+  least_improvement_bl     = exp(mean(log(least_improvement_bls))); % log mean instead so focus on order of magnitudes
+  least_improvement_nonbl  = exp(mean(log(least_improvement_nonbls)));
   fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
   fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
   if least_improvement_bl >= least_improvement_nonbl
