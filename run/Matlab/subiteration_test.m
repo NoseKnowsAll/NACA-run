@@ -1,9 +1,19 @@
 % Now that information is initialized, actually test FGMRES preconditioned by subiterations
-function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type)
+function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type, divide_by_dt)
 
-  % For testing MFEM: should be mfem_time_dependent_jacobian
-  Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
-  diagA = Ms-dt*JD;
+  if ~exist('divide_by_dt','var')
+    divide_by_dt = false; % Assume working with 3DG matrices
+  end
+
+  if divide_by_dt
+    % For testing MFEM: should be mfem_time_dependent_jacobian
+    Atimes = @(x)mfem_time_dependent_jacobian(J, Ms, dt, x);
+    diagA = Ms/dt - JD;
+  else
+    % For testing 3DG: do not divide by dt
+    Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
+    diagA = Ms-dt*JD;
+  end
 
   %fprintf("Working on condition number...\n");
   %sparseA = construct_sparse_matrix(diagA, Dij);
@@ -22,10 +32,11 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
 
   %[x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
   [x, iter, residuals] = restarted_fgmres(Atimes, b, [], tol, restart, maxiter, precond, true);
-  
-  t_gmres = toc(t_start);
+
+  global fgmres_timer;
+  fgmres_timer = toc(t_start);
   fprintf("total iterations: %d\n", iter);
-  fprintf("time: %6.2f\n", t_gmres);
+  fprintf("time: %6.2f\n", fgmres_timer);
   fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
   
 end

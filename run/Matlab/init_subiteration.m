@@ -42,9 +42,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   
   global outer_iteration;
   outer_iteration = outer_iteration + 1;
-  %if outer_iteration <= 6 || outer_iteration > 8 % TODO: ramped subiteration
-  %  nsubiter = 0;
-  %end
   %nsubiter = 0; % TODO: only global preconditioner
   if nsubiter <= 0
     return;
@@ -57,6 +54,7 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
     r = rhs - A*x;
   end
 
+  %TODO: Debugging
   %iter = num2str(outer_iteration, "%03.f");
   %res_file = sprintf("../results/Matlab/residual_it%s.mat", iter);
   %fwritearray(res_file, r);
@@ -75,14 +73,8 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
-    return
+    return;
   end
-  %subtol = 1e-1; % TODO: Pure subiteration
-  %if outer_iteration > 4 % TODO: ramped subiteration
-  %  subtol = tol;
-  %else
-  %  subtol = tol*1e-4;
-  %end
 
   % Initial guess -x_bl simply to align with MFEM solving negative of this problem
   %[e_bl, subiter, residuals] = restarted_fgmres(A_bl, r_bl, -x_bl, subtol, nsubiter, nsubiter, precond_bl, false);
@@ -160,7 +152,7 @@ function subtol = compute_subtol(r, nt, nlocal, bl_elems)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
   nonbl_elems = setdiff(1:nt, bl_elems);
-  nelem_worst = 10; % Number of worst elements to consider in both subregion and outer region
+  nelem_worst = 1; % Number of worst elements to consider in both subregion and outer region
   least_improvement_bls    = mink(norms(bl_elems)   , nelem_worst);
   least_improvement_nonbls = mink(norms(nonbl_elems), nelem_worst);
   least_improvement_bl     = exp(mean(log(least_improvement_bls))); % log mean instead so focus on order of magnitudes

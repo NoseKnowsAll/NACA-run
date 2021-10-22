@@ -1,9 +1,9 @@
-% Check performance of subiteration solver on NACA problem to analyze several different hyperparameters
-function performance_analysis(run_tests, plot_tests, results_file)
+% Check performance of subiteration solver on MFEM convection-diffusion problem to analyze several different hyperparameters
+function mfem_performance_analysis(run_tests, plot_tests, results_file)
 
   % Initialization
   if nargin < 3
-    results_file = "/scratch/mfranco/2021/naca/run/results/Matlab/performance.mat";
+    results_file = "/scratch/mfranco/2021/naca/run/results/Matlab/mfem_performance.mat";
     if nargin < 2
       plot_tests = false;
       if nargin < 1
@@ -16,30 +16,36 @@ function performance_analysis(run_tests, plot_tests, results_file)
     % Run tests - expensive
     global_precond_type = "jacobi";
     tol = 1e-8;
-    dts = [1e-4, 1e-3];
+    dts = [1e-3];
+    Lxs = 1:10;
     subtol_factors = [1e0 1e1];
     nsubiters = [10 20 30 40 300];
-    performance = zeros(length(nsubiters), length(subtol_factors), length(dts), 3);
-    
-    for idt = 1:length(dts);
-      dt = dts(idt);
+    performance = zeros(length(nsubiters), length(subtol_factors), length(dts), 4);
 
-      for ist = 1:length(subtol_factors)
-	subtol_factor = subtol_factors(ist);
+    for iLx = 1:length(Lxs)
+      Lx = Lxs(iLx);
+      for idt = 1:length(dts)
+	dt = dts(idt);
 
-	for ins = 1:length(nsubiters);
-	  nsubiter = nsubiters(ins);
-	
-	  naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type);
-	
-	  global inner_iterations;
-	  global outer_iteration;
-	  global percent_subregion;
-	  performance(ins, ist, idt, 1) = inner_iterations;
-	  performance(ins, ist, idt, 2) = outer_iteration;
-	  performance(ins, ist, idt, 3) = cost_in_matvecs(inner_iterations, outer_iteration, percent_subregion);
-	  fprintf("\n\n\n\n");
-	  
+	for ist = 1:length(subtol_factors)
+	  subtol_factor = subtol_factors(ist);
+
+	  for ins = 1:length(nsubiters)
+	    nsubiter = nsubiters(ins);
+
+	    mfem_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type, Lx);
+	    
+	    global inner_iterations;
+	    global outer_iteration;
+	    global percent_subregion;
+	    global fgmres_timer;
+	    performance(ins, ist, idt, iLx, 1) = inner_iterations;
+	    performance(ins, ist, idt, iLx, 2) = outer_iteration;
+	    performance(ins, ist, idt, iLx, 3) = cost_in_matvecs(inner_iterations, outer_iteration, percent_subregion);
+	    performance(ins, ist, idt, iLx, 4) = fgmres_timer;
+	    fprintf("\n\n\n\n");
+	    
+	  end
 	end
       end
     end
