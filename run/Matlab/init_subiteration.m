@@ -3,18 +3,14 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   nt = size(diagA,3);
   nlocal = size(diagA,2);
   fprintf("Subiteration preconditioner with nsubiter=%d, nt=%d, size(bl_elems)=%d\n", nsubiter, nt, length(bl_elems));
-  
-  Dinvs = cell(nt,1);
+
   if global_precond_type == "jacobi"
-    for it = 1:nt
-      Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
-    end
+    precond_global = init_jacobi(diagA);
   elseif global_precond_type == "mass_inv"
-    for it = 1:nt
-      Dinvs{it} = decomposition(Ms(:,:,it), 'lu');
-    end
+    precond_global = init_jacobi(Ms);
+  else
+    error("Invalid global_precond_type");
   end
-  precond_global = @(rhs) apply_global_preconditioner(Dinvs, rhs);
 
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   
@@ -42,10 +38,16 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   
   global outer_iteration;
   outer_iteration = outer_iteration + 1;
-  %nsubiter = 0; % TODO: only global preconditioner
   if nsubiter <= 0
     return;
   end
+
+  % TODO: Debugging compute_subtol
+  %[x_true, iter, res] = static_gmres(A, rhs, x, 1e-10, 300, precond_global, "right", false);
+  %error = x_true - x;
+  %iter = num2str(outer_iteration, "%03.f");
+  %err_file = sprintf("../results/Matlab/error_it%s.mat", iter);
+  %fwritearray(err_file, error);
   
   % TODO: check if convergence changes when we compute true r_bl = rhs_bl - A_bl(x_bl)
   if isa(A, 'function_handle')
@@ -55,9 +57,14 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   end
 
   %TODO: Debugging
+  %scaled_err = precond_global(r);
   %iter = num2str(outer_iteration, "%03.f");
   %res_file = sprintf("../results/Matlab/residual_it%s.mat", iter);
   %fwritearray(res_file, r);
+  
+  %scaled_err_file = sprintf("../results/Matlab/scaled_error_it%s.mat", iter);
+  %fwritearray(scaled_err_file, scaled_err);
+  
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
 
   %r_global = pad_subvector(r_bl, nt, nlocal, bl_elems);
@@ -70,7 +77,10 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes.
 
-  subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
+  % TODO: Debugging compute_subtol
+  subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)*subtol_factor;
+  %subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
+  %subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
     return;
@@ -89,19 +99,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
     x = x + pad_subvector(e_bl, nt, nlocal, bl_elems);
   end
   
-end
-
-% Evaluates global preconditioner to rhs. In this case, just block diagonal inverse x = D\rhs
-function x = apply_global_preconditioner(Dinvs, rhs)
-  nt = size(Dinvs,1);
-  nlocal = Dinvs{1}.MatrixSize(2);
-  
-  x = rhs;
-  x2 = reshape(x, nlocal, nt);
-  for it = 1:nt
-    x2(:,it) = Dinvs{it}\x2(:,it);
-  end
-  x = reshape(x2, nlocal*nt, 1);
 end
 
 % Extract portion of operator A corresponding to rows specified by bl_elems
@@ -152,16 +149,68 @@ function subtol = compute_subtol(r, nt, nlocal, bl_elems)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
   nonbl_elems = setdiff(1:nt, bl_elems);
-  nelem_worst = 1; % Number of worst elements to consider in both subregion and outer region
-  least_improvement_bls    = mink(norms(bl_elems)   , nelem_worst);
-  least_improvement_nonbls = mink(norms(nonbl_elems), nelem_worst);
-  least_improvement_bl     = exp(mean(log(least_improvement_bls))); % log mean instead so focus on order of magnitudes
-  least_improvement_nonbl  = exp(mean(log(least_improvement_nonbls)));
+
+  least_improvement_bl = min(norms(bl_elems));
+  least_improvement_nonbl = min(norms(nonbl_elems));
+  
+  %nelem_worst = 10; % Number of worst elements to consider in both subregion and outer region
+  %least_improvement_bls    = mink(norms(bl_elems)   , nelem_worst);
+  %least_improvement_nonbls = mink(norms(nonbl_elems), nelem_worst);
+  %least_improvement_bl     = exp(mean(log(least_improvement_bls))); % log mean instead so focus on order of magnitudes
+  %least_improvement_nonbl  = exp(mean(log(least_improvement_nonbls)));
   fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
   fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
   if least_improvement_bl >= least_improvement_nonbl
     subtol = 0; % skip inner GMRES completely because we've improved more in subregion
   else
     subtol = least_improvement_bl/least_improvement_nonbl;
+  end
+end
+
+
+% Compute the subtolerance needed to solve inner problem.
+% After solve, this tolerance ensures element with least improvement in subregion
+% will be at least as accurate as element with least improvement in rest of domain.
+% error = true error = A\rhs - P\rhs
+function subtol = compute_subtol_from_error(error, nt, nlocal, bl_elems)
+  error2 = reshape(error, nlocal, nt);
+  norms = vecnorm(error2);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+
+  max_error_bl = max(norms(bl_elems));
+  max_error_nonbl = max(norms(nonbl_elems));
+  fprintf("max error found in bl: %8.3e\n", max_error_bl);
+  fprintf("max error found outside bl: %8.3e\n", max_error_nonbl);
+  if max_error_bl < max_error_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+  else
+    subtol = max_error_nonbl/max_error_bl;
+  end
+end
+
+% Compute the subtolerance needed to solve inner problem.
+% scaled_error = P\res which should approximately be error,
+% Then, multiplying ||res||/||scaled_error|| return tolerance in terms of res
+function subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)
+  scaled_error = precond_global(r);
+  scaled_error2 = reshape(scaled_error, nlocal, nt);
+  r2 = reshape(r, nlocal, nt);
+  norms = vecnorm(scaled_error2);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+
+  [max_error_bl, ibl] = max(norms(bl_elems));
+  [max_error_nonbl, inbl] = max(norms(nonbl_elems));
+  fprintf("max error found in bl: %8.3e\n", max_error_bl);
+  fprintf("max error found outside bl: %8.3e\n", max_error_nonbl);
+  if max_error_bl < max_error_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+  else
+    % TODO: Which scaling factor? Global norm or local norm? Any necessary?
+    
+    err2res_bl = norm(r2(:,bl_elems(ibl)))/max_error_bl;
+    err2res_nbl = norm(r2(:,nonbl_elems(inbl)))/max_error_nonbl;
+    fprintf("err2res_bl = %8.3e, err2res_nbl = %8.3e\n", err2res_bl, err2res_nbl);
+    %subtol = Dimensionless amount residual must improve
+    subtol = (max_error_nonbl*err2res_nbl) / (max_error_bl*err2res_bl);
   end
 end
