@@ -36,6 +36,10 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
   global fgmres_timer;
   fgmres_timer = toc(t_start);
   fprintf("total iterations: %d\n", iter);
+  global inner_iterations;
+  if inner_iterations > 0
+    fprintf("inner iterations: %d\n", inner_iterations);
+  end
   fprintf("time: %6.2f\n", fgmres_timer);
   fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
   

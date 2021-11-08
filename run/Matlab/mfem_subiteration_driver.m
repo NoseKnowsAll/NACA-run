@@ -1,5 +1,5 @@
 % From a set of matrices saved by Will's MFEM code, solve Ax=b with FGMRES preconditioned with subiteration
-function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, global_precond_type, h, p, Lx)
+function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx)
 
   if nargin < 8
     Lx = 1;
@@ -9,14 +9,17 @@ function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, global_precond_typ
 	h = 1e-3;
 	if nargin < 5
 	  global_precond_type = "jacobi";
-	  if nargin < 4
-	    nsubiter = 500;
-	    if nargin < 3
-	      tol = 1e-8;
-	      if nargin < 2
-		dt = 1e-3;
-		if nargin < 1
-		  mfem_dt = 1e-3;
+	  if nargin < 5
+	    subtol_factor = 1.0;
+	    if nargin < 4
+	      nsubiter = 500;
+	      if nargin < 3
+		tol = 1e-8;
+		if nargin < 2
+		  dt = 1e-3;
+		  if nargin < 1
+		    mfem_dt = 1e-3;
+		  end
 		end
 	      end
 	    end
@@ -54,7 +57,7 @@ function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, global_precond_typ
   %test_matvec(Atimes, b, mass_dir);
   %return;
 
-  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type, true);
+  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type, true);
   
 end
 
