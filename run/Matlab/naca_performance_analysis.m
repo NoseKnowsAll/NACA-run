@@ -16,10 +16,10 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
     % Run tests - expensive
     global_precond_type = "jacobi";
     tol = 1e-8;
-    dts = [1e-4, 1e-3];
-    subtol_factors = [1e0 1e1];
-    nsubiters = [10 20 30 40 300];
-    performance = zeros(length(nsubiters), length(subtol_factors), length(dts), 3);
+    dts = [1e-3];
+    subtol_factors = [1e-1 1e0 1e1];
+    nsubiters = [10 20 30 40 100];
+    performance = zeros(length(nsubiters), length(subtol_factors), length(dts), 4);
     
     for idt = 1:length(dts);
       dt = dts(idt);
@@ -35,9 +35,11 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
 	  global inner_iterations;
 	  global outer_iteration;
 	  global percent_subregion;
+	  global fgmres_timer;
 	  performance(ins, ist, idt, 1) = inner_iterations;
 	  performance(ins, ist, idt, 2) = outer_iteration;
 	  performance(ins, ist, idt, 3) = cost_in_matvecs(inner_iterations, outer_iteration, percent_subregion);
+	  performance(ins, ist, idt, 4) = fgmres_timer;
 	  fprintf("\n\n\n\n");
 	  
 	end
@@ -53,6 +55,7 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
 
   % Plot tests if interested
   if plot_tests
+    close all;
     for idt = 1:length(dts);
       dt = dts(idt);
 
@@ -61,10 +64,17 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
 
 	% Plot cost vs nsubiters for this (dt, subtol_factor) pair
 	figure((idt-1)*length(subtol_factors)+ist);
+	yyaxis left;
+	ylabel("matvecs");
 	plot(nsubiters, performance(:,ist,idt,3), 'r.-', 'markersize', 20);
-	title(sprintf("dt=%.1e, subtolFactor=%.1e",dt, subtol_factor));
+	hold on;
+	timings = performance(:,ist,idt,4);
+	yyaxis right;
+	ylabel("timing (s)");
+	plot(nsubiters, timings, 'b--', 'markersize', 15);
+	title(sprintf("naca dt=%.1e, subtolFactor=%.1e",dt, subtol_factor));
 	xlabel("nsubiter");
-	ylabel("effective matvecs");
+	legend("performance model", "scaled timings");
       end
     end
   end
@@ -77,7 +87,7 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
       for ins = 1:length(nsubiters)
 	nsubiter = nsubiters(ins);
 
-	fprintf("@ dt=%.1e, subtol_factor=%.1e, nsubiter=%3d, (inner, outer, cost) = (%d, %d, %f)\n", dt, subtol_factor, nsubiter, performance(ins,ist,idt,1), performance(ins,ist,idt,2), performance(ins,ist,idt,3));
+	fprintf("@ dt=%.1e, subtol_factor=%.1e, nsubiter=%3d, (inner, outer, cost) = (%d, %d, %f), t=%.2e\n", dt, subtol_factor, nsubiter, performance(ins,ist,idt,1), performance(ins,ist,idt,2), performance(ins,ist,idt,3), performance(ins,ist,idt,4));
       end
     end
   end
