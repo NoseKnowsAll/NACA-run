@@ -8,6 +8,7 @@ function extended_msh = extend_naca_bounding_box(msh, R)
   if nargin < 1
     msh = h5freadstruct("../naca_v2_p3_r0.h5");
   end
+  porder = msh.porder;
   R_orig = 5; % TODO: Determine from mesh itself?
   if R == R_orig
     extended_msh = msh;
@@ -19,18 +20,19 @@ function extended_msh = extend_naca_bounding_box(msh, R)
   p = msh.p';
   t = msh.t'+1; % Matlab is 1-indexed
   i_left  = x_lies(p, 0.5-R_orig);
-  i_right = x_lies(p, 0.5+2*R_orig);
+  i_right = flip(x_lies(p, 0.5+2*R_orig));
   [p,t] = extend_in_direction(p, t, i_left,  [-1, 0], R - R_orig);
   [p,t] = extend_in_direction(p, t, i_right, [+1, 0], 2*(R - R_orig));
   
   i_top = y_lies(p, R_orig);
-  i_bottom = y_lies(p, -R_orig);
+  i_bottom = flip(y_lies(p, -R_orig));
   [p,t] = extend_in_direction(p, t, i_top,     [0, +1], R - R_orig);
   [p,t] = extend_in_direction(p, t, i_bottom,  [0, -1], R - R_orig);
 
   % Create new mesh from now fully-defined p,t
   extended_msh = finalize_extended_mesh(msh, p, t, R);
-  extended_msh = nodealloc(extended_msh, 1);
+  extended_msh = nodealloc(extended_msh, porder);
+  extended_msh = mshchangep(extended_msh, porder);
   
 end
 
