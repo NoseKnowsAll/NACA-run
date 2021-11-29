@@ -78,8 +78,9 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   % independent of the smallest bl element sizes.
 
   % TODO: Debugging compute_subtol
-  subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)*subtol_factor;
-  %subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
+  %subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)*subtol_factor;
+  scaled_err = precond_global(r);
+  subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
   %subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
@@ -88,7 +89,8 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
 
   % Initial guess -x_bl simply to align with MFEM solving negative of this problem
   %[e_bl, subiter, residuals] = restarted_fgmres(A_bl, r_bl, -x_bl, subtol, nsubiter, nsubiter, precond_bl, false);
-  [e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, -x_bl, subtol, nsubiter, precond_bl, "right", false);
+  %[e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, -x_bl, subtol, nsubiter, precond_bl, "right", false);
+  [e_bl, subiter, residuals] = static_gmres(A_bl, r_bl, -x_bl, subtol, nsubiter, precond_bl, "left", false);
 
   %iteration = init_jacobi_method(A_bl, diagA_bl, r_bl);
   %[e_bl,subiter,residuals] = iterative_method(A_bl, r_bl, x_bl, subtol, nsubiter, iteration, true);
@@ -189,8 +191,9 @@ function subtol = compute_subtol_from_error(error, nt, nlocal, bl_elems)
 end
 
 % Compute the subtolerance needed to solve inner problem.
-% scaled_error = P\res which should approximately be error,
-% Then, multiplying ||res||/||scaled_error|| return tolerance in terms of res
+% scaled_error = P\res which should approximately be error, element scaling-wise
+% Then, multiply by ||res||/||scaled_error|| to convert tolerance to be wrt res
+% subtol: Dimensionless amount residual must improve
 function subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)
   scaled_error = precond_global(r);
   scaled_error2 = reshape(scaled_error, nlocal, nt);
@@ -203,14 +206,14 @@ function subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal
   fprintf("max error found in bl: %8.3e\n", max_error_bl);
   fprintf("max error found outside bl: %8.3e\n", max_error_nonbl);
   if max_error_bl < max_error_nonbl
-    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+    subtol = 0; % skip inner GMRES because subregion already more accurate
   else
-    % TODO: Which scaling factor? Global norm or local norm? Any necessary?
-    
     err2res_bl = norm(r2(:,bl_elems(ibl)))/max_error_bl;
     err2res_nbl = norm(r2(:,nonbl_elems(inbl)))/max_error_nonbl;
     fprintf("err2res_bl = %8.3e, err2res_nbl = %8.3e\n", err2res_bl, err2res_nbl);
-    %subtol = Dimensionless amount residual must improve
     subtol = (max_error_nonbl*err2res_nbl) / (max_error_bl*err2res_bl);
+    if subtol > 1
+      subtol = 0; % skip inner GMRES because subregion already more accurate (relatively)
+    end
   end
 end
