@@ -12,7 +12,8 @@ from pathlib import Path
 
 p = 3
 r = 12
-msh_name = "naca_v2_p"+str(p)+"_r"+str(r)
+R = 40
+msh_name = "naca_v2_p"+str(p)+"_r"+str(r)+"_R"+str(R)
 naca_dir = "/scratch/mfranco/2021/naca/"
 res_dir = naca_dir+"run/results/"+msh_name+"/"
 msh_dir = naca_dir+"meshes/"
