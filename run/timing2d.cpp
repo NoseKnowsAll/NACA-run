@@ -6,22 +6,23 @@
 
 const std::string suffix   = "_v2";
 const int         order    = 3;
-const int         refine   = 12;
+const int         refine   = 12; // amount boundary layer has been refined
+const int         R        = 30; // far field size
 const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 //const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
-const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
+const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine) + "_R" + to_string(R);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/snaps/";
 // TODO: Technically hLE is a bit smaller than hwing, but vast majority of BL elements will be based on hwing size. Should we use hwing?
-const double      hwing    = 0.049; // Make sure this is updated with correct value from naca_vX.geo
+const double      hwing    = 0.049; // Must be value from meshes/scripts/mk_naca_v*.m
 const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/Re sets safe h for boundary layer, this should be safe Re
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 2e-4;
-const double      Tfinal   = 0.0; // define as 0 to use nsteps variable instead
+const double      Tfinal   = 0.0;  // define as 0 to use nsteps variable instead
 const int         nsteps   = 5000; // only used if Tfinal == 0.0
 const int         presteps = 10;
-const int         step0    = 500;   // set to 1 if you have precomputed solution
-const int         writeint = 25;
+const int         step0    = 0;   // set to 1 if you have precomputed solution
+const int         writeint = 50;
 const int         nstages  = 3;
 
 const double      linerror = 1e-4;
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
     // Don't compute initial steps. Load soln from file instead
     dgprintf(" >>> Checkpointing from %d <<<\n", step0);
     freadsolution(pre + "sol" + fill_int_to_string(step0, 5, '0') + ".dat", u, msh);
-    
+    p.time = 0+step0*dt;
   }
     
   // Main loop
