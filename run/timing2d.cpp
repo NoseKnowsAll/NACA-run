@@ -7,7 +7,7 @@
 const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12; // amount boundary layer has been refined
-const int         R        = 30; // far field size
+const int         R        = 40; // far field size
 const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 //const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine) + "_R" + to_string(R);

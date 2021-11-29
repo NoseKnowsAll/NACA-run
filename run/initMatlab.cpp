@@ -6,10 +6,11 @@
 
 const std::string suffix   = "_v2";
 const int         order    = 3;
-const int         refine   = 4;
-//const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
-const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
-const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine);
+const int         refine   = 12; // amount boundary layer has been refined
+const int         R        = 40; // far field size
+const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
+//const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
+const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine) + "_R" + to_string(R);
 const std::string pre      = "/scratch/mfranco/2021/naca/run/results/" + meshname + "/snaps/";
 // TODO: Technically hLE is a bit smaller than hwing, but vast majority of BL elements will be based on hwing size. Should we use hwing?
 const double      hwing    = 0.049; // Make sure this is updated with correct value from naca_vX.geo
@@ -17,12 +18,7 @@ const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 1e-3;
-const int         step0    = 1000;   // Must have a precomputed solution at this time step to begin
-const int         writeint = 10;
-const int         nstages  = 3;
-
-const double      linerror = 1e-4;
-const double      nlerror  = 1e-6;
+const int         step0    = 5000;   // Must have a precomputed solution at this time step to begin
 
 void linassemble(jacarray& Ddrdu,jacarray &Odrdu, jacarray& DJ,jacarray& OJ, darray& r,
 		 appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);
