@@ -1,15 +1,12 @@
 % Check performance of subiteration solver on NACA problem to analyze several different hyperparameters
-function naca_performance_analysis(run_tests, plot_tests, results_file)
+function naca_performance_analysis(run_tests, plot_tests, msh_name, results_file)
 
   % Initialization
-  if nargin < 3
-    results_file = "/scratch/mfranco/2021/naca/run/results/Matlab/naca_performance.mat";
-    if nargin < 2
-      plot_tests = false;
-      if nargin < 1
-	run_tests = false;
-      end
-    end
+  if nargin < 3; msh_name = "naca_v2_p3_r12"; end;
+  if nargin < 2; plot_tests = false; end;
+  if nargin < 1; run_tests = false; end;
+  if nargin < 4
+    results_file = "/scratch/mfranco/2021/naca/run/results/Matlab/"+msh_name+"_performance.mat";
   end
 
   if run_tests
@@ -30,7 +27,7 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
 	for ins = 1:length(nsubiters);
 	  nsubiter = nsubiters(ins);
 	
-	  naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type);
+	  naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type, msh_name);
 	
 	  global inner_iterations;
 	  global outer_iteration;
@@ -72,7 +69,7 @@ function naca_performance_analysis(run_tests, plot_tests, results_file)
 	yyaxis right;
 	ylabel("timing (s)");
 	plot(nsubiters, timings, 'b--', 'markersize', 15);
-	title(sprintf("naca dt=%.1e, subtolFactor=%.1e",dt, subtol_factor));
+	title(sprintf("%s dt=%.1e, subtolFactor=%.1e", msh_name, dt, subtol_factor), 'interpreter', 'none');
 	xlabel("nsubiter");
 	legend("performance model", "scaled timings");
       end

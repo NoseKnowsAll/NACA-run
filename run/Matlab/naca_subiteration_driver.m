@@ -1,28 +1,20 @@
 % Solves the linear Ax=b problem from the NACA airfoil N-S solver
-function naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type)
+function naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type, msh_name)
 
+  if nargin < 6; msh_name = "naca_v2_p3_r12"; end;
   if nargin < 5
     global_precond_type = "jacobi";
-    if nargin < 4
-      subtol_factor = 1;
-      if nargin < 3
-	nsubiter = 500;
-	if nargin < 2
-	  tol = 1e-8;
-	  if nargin < 1
-	    dt = 1e-3;
-	  end
-	end
-      end
-    end
   else
     if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
       fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
       return;
     end
   end
-
-  msh_name = "naca_v2_p3_r12";
+  if nargin < 4; subtol_factor = 1; end;
+  if nargin < 3; nsubiter = 500; end;
+  if nargin < 2; tol = 1e-8; end;
+  if nargin < 1; dt = 1e-3; end;
+  
   bl_file = "/scratch/mfranco/2021/naca/meshes/"+msh_name+"bl.mat";
   msh_file = "/scratch/mfranco/2021/naca/run/partitioned/"+msh_name+".h5";
   results_dir = "/scratch/mfranco/2021/naca/run/results/"+msh_name+"/";
