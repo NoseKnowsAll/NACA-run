@@ -1,6 +1,7 @@
 # Specific executables
 timing2d
 benchmark_dgops
+les2d
 eigenvalue
 initMatlab
 sweep_dt

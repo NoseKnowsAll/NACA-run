@@ -66,22 +66,14 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   %fwritearray(scaled_err_file, scaled_err);
   
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
-
-  %r_global = pad_subvector(r_bl, nt, nlocal, bl_elems);
-  %r_nonbl = r - r_global; % r_nonbl contains residual away from region of interest
-  %rhs_bl = extract_subvector(rhs, nt, nlocal, bl_elems);
-  %rhs_global = pad_subvector(rhs_bl, nt, nlocal, bl_elems);
-  %rhs_nonbl = rhs - rhs_global; % rhs_nonbl contains RHS away from region of interest
   x_bl = extract_subvector(x, nt, nlocal, bl_elems);
 
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes.
 
   % TODO: Debugging compute_subtol
-  %subtol = compute_subtol_from_scaled_error(r, precond_global, nt, nlocal, bl_elems)*subtol_factor;
   scaled_err = precond_global(r);
   subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
-  %subtol = compute_subtol(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
     return;
