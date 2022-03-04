@@ -1,29 +1,20 @@
 % From a set of matrices saved relative to wr_dir, named msh_name, solve Ax=b with FGMRES preconditioned with subiteration
-function subiteration_driver(dt, tol, nsubiter, global_precond_type, h, p)
+function subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_type, h, p)
 
-  if nargin < 6
-    p = 3;
-    if nargin < 5
-      h = 1e-3;
-      if nargin < 4
-	global_precond_type = "jacobi";
-	if nargin < 3
-	  nsubiter = 500;
-	  if nargin < 2
-	    tol = 1e-8;
-	    if nargin < 1
-	      dt = 1e-3;
-	    end
-	  end
-	end
-      else
-	if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
-	  fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
-	  return;
-	end
-      end
+  if nargin < 7; p = 3; end;
+  if nargin < 6; h = 1e-3; end;
+  if nargin < 5
+    global_precond_type = "jacobi";
+  else
+    if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
+      fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
+      return;
     end
   end
+  if nargin < 4; subtol_factor = 1; end;
+  if nargin < 3; nsubiter = 500; end;
+  if nargin < 2; tol = 1e-8; end;
+  if nargin < 1; dt = 1e-3; end;
   
   msh_name = sprintf("aniso_p%d_h%.0e", p, h);
   wr_dir = "/scratch/mfranco/2021/wr-les-solvers/";
@@ -45,6 +36,6 @@ function subiteration_driver(dt, tol, nsubiter, global_precond_type, h, p)
   bl_elems = freadarray(bl_file);
   bl_elems = uint64(bl_elems(:));
 
-  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, global_precond_type);
+  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type);
   
 end
