@@ -49,7 +49,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   %err_file = sprintf("../results/Matlab/error_it%s.mat", iter);
   %fwritearray(err_file, error);
   
-  % TODO: check if convergence changes when we compute true r_bl = rhs_bl - A_bl(x_bl)
   if isa(A, 'function_handle')
     r = rhs - A(x);
   else
@@ -71,9 +70,14 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   % Solving this problem "correctly" should ensure the outer iteration is
   % independent of the smallest bl element sizes.
 
-  % TODO: Debugging compute_subtol
-  scaled_err = precond_global(r);
-  subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
+  %subtol = 1e-5; % TODO: Debugging compute_subtol
+
+  % TODO: OLD WAY
+  %scaled_err = precond_global(r);
+  %subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
+
+  % New way: Algorithm 3 in paper supported by following propositions
+  subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
     return;
@@ -139,6 +143,27 @@ end
 % Compute the subtolerance needed to solve inner problem.
 % After solve, this tolerance ensures element with least improvement in subregion
 % will be at least as accurate as element with least improvement in rest of domain.
+% Uses scaling factor of ||M_{c,c}^{-1}||_2 / ||M_{sr,sr}^{-1}||_2 to convert
+% from pure residuals to a form of scaled error
+function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems)
+  r2 = reshape(r, nlocal, nt);
+  norms = vecnorm(r2);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+  max_r_bl = max(norms(bl_elems));
+  max_r_c  = max(norms(nonbl_elems));
+  fprintf("max res found in bl: %8.3e\n", max_r_bl);
+  fprintf("max res found outside bl: %8.3e\n", max_r_c);
+  if max_r_bl < max_r_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+  else
+    global adaptive_factor;
+    subtol = adaptive_factor * (max_r_nonbl/max_r_bl);
+  end
+end
+
+% Compute the subtolerance needed to solve inner problem.
+% After solve, this tolerance ensures element with least improvement in subregion
+% will be at least as accurate as element with least improvement in rest of domain.
 function subtol = compute_subtol(r, nt, nlocal, bl_elems)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
@@ -146,12 +171,6 @@ function subtol = compute_subtol(r, nt, nlocal, bl_elems)
 
   least_improvement_bl = min(norms(bl_elems));
   least_improvement_nonbl = min(norms(nonbl_elems));
-  
-  %nelem_worst = 10; % Number of worst elements to consider in both subregion and outer region
-  %least_improvement_bls    = mink(norms(bl_elems)   , nelem_worst);
-  %least_improvement_nonbls = mink(norms(nonbl_elems), nelem_worst);
-  %least_improvement_bl     = exp(mean(log(least_improvement_bls))); % log mean instead so focus on order of magnitudes
-  %least_improvement_nonbl  = exp(mean(log(least_improvement_nonbls)));
   fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
   fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
   if least_improvement_bl >= least_improvement_nonbl
