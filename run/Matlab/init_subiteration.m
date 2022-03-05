@@ -12,10 +12,12 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
     error("Invalid global_precond_type");
   end
 
+  adaptive_factors = compute_adaptive_factor(Ms, bl_elems);
+
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   
   precond_bl = init_jacobi(diagA_bl);
-  precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, bl_elems, nt, nlocal, rhs);
+  precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, adaptive_factors, bl_elems, nt, nlocal, rhs);
   
   global outer_iteration;
   global inner_iterations;
@@ -32,7 +34,7 @@ end
 % Perform inner GMRES iteration to solve A_{bl}*e_{bl} = r_{bl} with initial guess x_{bl} to get e_{bl}
 % Update x according to correction: x = x + e_{bl}
 % Note: Only valid as a preconditioner within a broader FGMRES iteration
-function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, bl_elems, nt, nlocal, rhs)
+function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, adaptive_factors, bl_elems, nt, nlocal, rhs)
 
   x = precond_global(rhs);
   
@@ -77,7 +79,7 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   %subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
 
   % New way: Algorithm 3 in paper supported by following propositions
-  subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems)*subtol_factor;
+  subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_factors)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
     return;
@@ -140,24 +142,43 @@ function x = pad_subvector(x_bl, nt, nlocal, bl_elems, pad_val)
   x = reshape(x_shape, nlocal*nt, 1);
 end
 
+% Compute scaling factor of ||M_{c,c}^{-1}||_2 / ||M_{sr,sr}^{-1}||_2 to convert
+% from pure residuals to a form of scaled error.
+% Uses the fact that Ms is block diagonal and so ||M||_2 = max {||M_k||_2}
+function adaptive_factors = compute_adaptive_factor(Ms, bl_elems)
+  nt = size(Ms, 3);
+  norms = zeros(nt,1);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+
+  % 2-norm of M^{-1} is 1 / min {sigma_k}
+  % Only in Matlab 2021B can we use this: singular_vals = pagesvd(Ms);
+  for k = 1:nt
+    norms(k) = svds(Ms(:,:,k), 1, 'smallest');
+  end
+  norms = 1./norms;
+  max_norm_bl    = max(norms(bl_elems));
+  max_norm_nonbl = max(norms(nonbl_elems));
+  adaptive_factor = max_norm_nonbl / max_norm_bl;
+  fprintf("adaptive factor computed as %8.3e\n", adaptive_factor);
+  adaptive_factors = norms;
+end
+
 % Compute the subtolerance needed to solve inner problem.
 % After solve, this tolerance ensures element with least improvement in subregion
 % will be at least as accurate as element with least improvement in rest of domain.
-% Uses scaling factor of ||M_{c,c}^{-1}||_2 / ||M_{sr,sr}^{-1}||_2 to convert
-% from pure residuals to a form of scaled error
-function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems)
+% Uses scaling factor to convert from pure residuals to a form of scaled error
+function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_factors)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
   nonbl_elems = setdiff(1:nt, bl_elems);
-  max_r_bl = max(norms(bl_elems));
-  max_r_c  = max(norms(nonbl_elems));
+  [max_r_bl, ibl]      = max(norms(bl_elems));
+  [max_r_nonbl, inbl]  = max(norms(nonbl_elems));
   fprintf("max res found in bl: %8.3e\n", max_r_bl);
-  fprintf("max res found outside bl: %8.3e\n", max_r_c);
+  fprintf("max res found outside bl: %8.3e\n", max_r_nonbl);
   if max_r_bl < max_r_nonbl
     subtol = 0; % skip inner GMRES completely because we've improved more in subregion
   else
-    global adaptive_factor;
-    subtol = adaptive_factor * (max_r_nonbl/max_r_bl);
+    subtol = (adaptive_factors(inbl)/adaptive_factors(ibl)) * (max_r_nonbl/max_r_bl);
   end
 end
 
