@@ -108,10 +108,13 @@ function mfem_performance_analysis(run_tests, plot_tests, results_file)
 end
 
 % Computes the cost of a subiteration solve in terms of global matvecs
-% cost = n_element*n_local^2 * (3*it_outer + 2*percent_subregion*it_inner)
+% cost = n_element*n_local^2 * (2*it_outer + 2*percent_subregion*it_inner)
 % it_outer is the global number of outer iterations
 % it_inner is the total number of inner iterations across all outer iterations
 % percent subregion = n_elements / n_elements_in_subregion
 function cost = cost_in_matvecs(it_inner, it_outer, percent_subregion)
-  cost = 3*it_outer + 2*percent_subregion*it_inner;
+  % OLD COMPUTATION
+  %cost = 3*it_outer + 2*percent_subregion*it_inner;
+  % One less matvec in outer iteration because we now directly use residual, not preconditioned residual
+  cost = 2*it_outer + 2*percent_subregion*it_inner;
 end

@@ -12,7 +12,7 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
     error("Invalid global_precond_type");
   end
 
-  adaptive_factors = compute_adaptive_factor(Ms, bl_elems);
+  adaptive_factors = compute_adaptive_factors(Ms, bl_elems);
 
   [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   
@@ -142,10 +142,11 @@ function x = pad_subvector(x_bl, nt, nlocal, bl_elems, pad_val)
   x = reshape(x_shape, nlocal*nt, 1);
 end
 
-% Compute scaling factor of ||M_{c,c}^{-1}||_2 / ||M_{sr,sr}^{-1}||_2 to convert
+% Compute data for scaling factor of ||M_{c,c}^{-1}||_2 / ||M_{sr,sr}^{-1}||_2 to convert
 % from pure residuals to a form of scaled error.
 % Uses the fact that Ms is block diagonal and so ||M||_2 = max {||M_k||_2}
-function adaptive_factors = compute_adaptive_factor(Ms, bl_elems)
+% Returns all local norms ||M_{k,k}^{-1}||_2
+function adaptive_factors = compute_adaptive_factors(Ms, bl_elems)
   nt = size(Ms, 3);
   norms = zeros(nt,1);
   nonbl_elems = setdiff(1:nt, bl_elems);
@@ -178,7 +179,9 @@ function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_fact
   if max_r_bl < max_r_nonbl
     subtol = 0; % skip inner GMRES completely because we've improved more in subregion
   else
-    subtol = (adaptive_factors(inbl)/adaptive_factors(ibl)) * (max_r_nonbl/max_r_bl);
+    adaptive = adaptive_factors(inbl)/adaptive_factors(ibl);
+    fprintf("adaptive factor: %8.3e\n", adaptive);
+    subtol = min(1,adaptive) * (max_r_nonbl/max_r_bl);
   end
 end
 
