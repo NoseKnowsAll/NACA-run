@@ -181,26 +181,6 @@ end
 % Compute the subtolerance needed to solve inner problem.
 % After solve, this tolerance ensures element with least improvement in subregion
 % will be at least as accurate as element with least improvement in rest of domain.
-function subtol = compute_subtol(r, nt, nlocal, bl_elems)
-  r2 = reshape(r, nlocal, nt);
-  norms = vecnorm(r2);
-  nonbl_elems = setdiff(1:nt, bl_elems);
-
-  least_improvement_bl = min(norms(bl_elems));
-  least_improvement_nonbl = min(norms(nonbl_elems));
-  fprintf("Least improvement found in bl: %8.3e\n", least_improvement_bl);
-  fprintf("Least improvement found outside bl: %8.3e\n", least_improvement_nonbl);
-  if least_improvement_bl >= least_improvement_nonbl
-    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
-  else
-    subtol = least_improvement_bl/least_improvement_nonbl;
-  end
-end
-
-
-% Compute the subtolerance needed to solve inner problem.
-% After solve, this tolerance ensures element with least improvement in subregion
-% will be at least as accurate as element with least improvement in rest of domain.
 % error = true error = A\rhs - P\rhs
 function subtol = compute_subtol_from_error(error, nt, nlocal, bl_elems)
   error2 = reshape(error, nlocal, nt);
