@@ -37,20 +37,13 @@ end
 function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, adaptive_factors, bl_elems, nt, nlocal, rhs)
 
   x = precond_global(rhs);
-  
+
   global outer_iteration;
   outer_iteration = outer_iteration + 1;
   if nsubiter <= 0
     return;
   end
 
-  % TODO: Debugging compute_subtol
-  %[x_true, iter, res] = static_gmres(A, rhs, x, 1e-10, 300, precond_global, "right", false);
-  %error = x_true - x;
-  %iter = num2str(outer_iteration, "%03.f");
-  %err_file = sprintf("../results/Matlab/error_it%s.mat", iter);
-  %fwritearray(err_file, error);
-  
   if isa(A, 'function_handle')
     r = rhs - A(x);
   else
