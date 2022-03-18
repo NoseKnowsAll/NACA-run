@@ -1,45 +1,38 @@
 % From a set of matrices saved by Will's MFEM code, solve Ax=b with FGMRES preconditioned with subiteration
-function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx)
+function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx, variable)
 
-  if nargin < 8
-    Lx = 1;
-    if nargin < 7
-      p = 3;
-      if nargin < 6
-	h = 1e-3;
-	if nargin < 5
-	  global_precond_type = "jacobi";
-	  if nargin < 5
-	    subtol_factor = 1.0;
-	    if nargin < 4
-	      nsubiter = 500;
-	      if nargin < 3
-		tol = 1e-8;
-		if nargin < 2
-		  dt = 1e-3;
-		  if nargin < 1
-		    mfem_dt = 1e-3;
-		  end
-		end
-	      end
-	    end
-	  end
-	else
-	  if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
-	    fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
-	    return;
-	  end
-	end
-      end
+  if nargin < 10; variable = false; end;
+  if nargin < 9; Lx = 1; end;
+  if nargin < 8; p = 3; end;
+  if nargin < 7; h = 1e-3; end;
+  if nargin < 6
+    global_precond_type = "jacobi";
+  else
+    if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
+      fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
+      return;
     end
   end
+  if nargin < 5; subtol_factor = 1.0; end;
+  if nargin < 4; nsubiter = 500; end;
+  if nargin < 3; tol = 1e-8; end;
+  if nargin < 2; dt = 1e-3; end;
+  if nargin < 1; mfem_dt = 1e-3; end
 
-  msh_name = sprintf("aniso_p%d_h%.0e_Lx%d", p, h, Lx);
+  if Lx == -1
+    msh_name = sprintf("aniso_p%d_h%.0e", p, h);
+  else
+    msh_name = sprintf("aniso_p%d_h%.0e_Lx%d", p, h, Lx);
+  end
   wr_dir = "/scratch/mfranco/2021/wr-les-solvers/";
   msh_dir = wr_dir+"meshes/";
   bl_file = msh_dir+msh_name+"bl.mat";
   msh_file = msh_dir+msh_name+".h5";
-  results_dir = wr_dir+"results/mfem_"+msh_name+"/";
+  if variable
+    results_dir = wr_dir+"results/mfem_"+msh_name+"/variable/";
+  else
+    results_dir = wr_dir+"results/mfem_"+msh_name+"/";
+  end
   mass_dir = results_dir+"mass/";
 
   fprintf("Running mfem_subiteration_driver(dt=%.1e) on mesh %s, nsubiter=%d.\n", dt, msh_name, nsubiter);
