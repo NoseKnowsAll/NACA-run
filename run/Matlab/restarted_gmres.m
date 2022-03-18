@@ -1,5 +1,6 @@
 % Restarted GMRES 
 function [x, iter, residuals] = restarted_gmres(A, b, tol, maxiter, restart, adaptive)
+  fprintf("\n\nWARNING: RUNNING RESTARTED_GMRES. Did you perhaps mean restarted_fgmres?\n\n")
   % initialization
   if nargin < 6
     adaptive = false;
