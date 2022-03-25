@@ -71,7 +71,10 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   %scaled_err = precond_global(r);
   %subtol = compute_subtol_from_error(scaled_err, nt, nlocal, bl_elems)*subtol_factor;
 
-  % New way: Algorithm 3 in paper supported by following propositions
+  % Algorithm 3 in paper directly with "correct" scaling factor supported by following propositions
+  %subtol = compute_subtol_from_res_global_factor(r, nt, nlocal, bl_elems, adaptive_factors)*subtol_factor;
+
+  % Algorithm 3 + more performant scaling factor in paper
   subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_factors)*subtol_factor;
   fprintf("subtol*factor computed to be %8.3e\n", subtol);
   if subtol == 0
@@ -153,14 +156,15 @@ function adaptive_factors = compute_adaptive_factors(Ms, bl_elems)
   max_norm_bl    = max(norms(bl_elems));
   max_norm_nonbl = max(norms(nonbl_elems));
   adaptive_factor = max_norm_nonbl / max_norm_bl;
-  fprintf("adaptive factor computed as %8.3e\n", adaptive_factor);
+  fprintf("worst adaptive factor computed as %8.3e\n", adaptive_factor);
   adaptive_factors = norms;
 end
 
 % Compute the subtolerance needed to solve inner problem.
 % After solve, this tolerance ensures element with least improvement in subregion
 % will be at least as accurate as element with least improvement in rest of domain.
-% Uses scaling factor to convert from pure residuals to a form of scaled error
+% Uses local scaling factor to convert from pure residuals to a form of scaled error.
+% Most performant scaling factor from paper.
 function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_factors)
   r2 = reshape(r, nlocal, nt);
   norms = vecnorm(r2);
@@ -175,6 +179,51 @@ function subtol = compute_subtol_from_res(r, nt, nlocal, bl_elems, adaptive_fact
     adaptive = adaptive_factors(inbl)/adaptive_factors(ibl);
     fprintf("adaptive factor: %8.3e\n", adaptive);
     subtol = min(1,adaptive) * (max_r_nonbl/max_r_bl);
+  end
+end
+
+% Compute the subtolerance needed to solve inner problem.
+% After solve, this tolerance ensures element with least improvement in subregion
+% will be at least as accurate as element with least improvement in rest of domain.
+% Uses global scaling factor to convert from pure residuals to a form of scaled error.
+% Direct from Algorithm 3, but not very efficient.
+function subtol = compute_subtol_from_res_global_factor(r, nt, nlocal, bl_elems, adaptive_factors)
+  r2 = reshape(r, nlocal, nt);
+  norms = vecnorm(r2);
+  nonbl_elems = setdiff(1:nt, bl_elems);
+  max_r_bl    = max(norms(bl_elems));
+  max_r_nonbl = max(norms(nonbl_elems));
+  fprintf("max res found in bl: %8.3e\n", max_r_bl);
+  fprintf("max res found outside bl: %8.3e\n", max_r_nonbl);
+  if max_r_bl < max_r_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+  else
+    max_norm_bl    = max(adaptive_factors(bl_elems));
+    max_norm_nonbl = max(adaptive_factors(nonbl_elems));
+    adaptive_factor = max_norm_nonbl / max_norm_bl; % Never changes across iterations
+    fprintf("global adaptive factor: %8.3e\n", adaptive_factor);
+    subtol = min(1,adaptive_factor) * (max_r_nonbl/max_r_bl);
+  end
+end
+
+% Compute the subtolerance needed to solve inner problem.
+% After solve, this tolerance ensures element with least improvement in subregion
+% will be at least as accurate as element with least improvement in rest of domain.
+% Uses all adaptive_factors to convert from pure residuals to a form of scaled error.
+% Not as performant as compute_subtol_from_res
+function subtol = compute_subtol_from_adaptive_res(r, nt, nlocal, bl_elems, adaptive_factors)
+  r2 = reshape(r, nlocal, nt);
+  norms = vecnorm(r2);
+  scaled_norms  = (norms.').*adaptive_factors;
+  nonbl_elems   = setdiff(1:nt, bl_elems);
+  max_r_bl      = max(scaled_norms(bl_elems));
+  max_r_nonbl   = max(scaled_norms(nonbl_elems));
+  fprintf("max res.*adaptive found in bl: %8.3e\n", max_r_bl);
+  fprintf("max res.*adaptive found outside bl: %8.3e\n", max_r_nonbl);
+  if max_r_bl < max_r_nonbl
+    subtol = 0; % skip inner GMRES completely because we've improved more in subregion
+  else
+    subtol = max_r_nonbl/max_r_bl;
   end
 end
 
