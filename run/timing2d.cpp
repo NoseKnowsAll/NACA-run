@@ -7,7 +7,7 @@
 const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12; // amount boundary layer has been refined
-const int         R        = 40; // far field size
+const int         R        = 30; // far field size
 const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 //const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine) + "_R" + to_string(R);
@@ -19,9 +19,9 @@ const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 2e-4;
 const double      Tfinal   = 0.0;  // define as 0 to use nsteps variable instead
-const int         nsteps   = 5000; // only used if Tfinal == 0.0
+const int         nsteps   = 10000; // only used if Tfinal == 0.0
 const int         presteps = 10;
-const int         step0    = 0;   // set to 1 if you have precomputed solution
+const int         step0    = 10000;   // set to 1 if you have precomputed solution
 const int         writeint = 50;
 const int         nstages  = 3;
 
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
   // Initialize solver parameters
   int maxiter = 200;
   int restart = 30;
-  auto linsolver = LinearSolverOptions::gmres("j", linerror, maxiter, restart); // j => Jacobi, i => ILU
+  auto linsolver = LinearSolverOptions::gmres("i", linerror, maxiter, restart); // j => Jacobi, i => ILU
   auto newton = NewtonOptions(linsolver, nlerror);
   
   // Set up the solution variable

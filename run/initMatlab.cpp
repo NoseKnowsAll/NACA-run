@@ -7,7 +7,7 @@
 const std::string suffix   = "_v2";
 const int         order    = 3;
 const int         refine   = 12; // amount boundary layer has been refined
-const int         R        = 40; // far field size
+const int         R        = 5; // far field size
 const std::string meshdir  = "/scratch/mfranco/2021/naca/run/partitioned/";
 //const std::string meshdir  = "/scratch/mfranco/2021/naca/meshes/";
 const std::string meshname = "naca" + suffix + "_p" + to_string(order) + "_r" + to_string(refine) + "_R" + to_string(R);
@@ -18,7 +18,7 @@ const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 1e-3;
-const int         step0    = 5000;   // Must have a precomputed solution at this time step to begin
+const int         step0    = 10000;   // Must have a precomputed solution at this time step to begin
 
 void linassemble(jacarray& Ddrdu,jacarray &Odrdu, jacarray& DJ,jacarray& OJ, darray& r,
 		 appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);

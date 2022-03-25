@@ -17,6 +17,7 @@ run/results/Matlab/
 *.mat
 *.png
 *.mp4
+*.jpg
 
 # Emacs working files
 *~
