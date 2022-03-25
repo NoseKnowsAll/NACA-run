@@ -36,7 +36,6 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
   end
 
   fprintf("Restarted FGMRES, reaching absolute tolerance %8.2e in %d,%d maximum iterations.\n", final_norm, restart, maxiter);
-  
   H = zeros(m+1,m);
   cs = zeros(m+1,1);
   sn = zeros(m+1,1);
@@ -84,7 +83,6 @@ function [x, iter, residuals] = restarted_fgmres(A, b, x0, tol, restart, maxiter
 
       % Check convergence
       if residual <= final_norm
-	% TODO: Will's version immediately quits based on first i+1 values?
 	x = x + Z(:,1:i) * (H(1:i,1:i)\s(1:i));
 	converged = true;
 	iter = j;
