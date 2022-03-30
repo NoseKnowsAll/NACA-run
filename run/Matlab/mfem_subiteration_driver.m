@@ -8,7 +8,7 @@ function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, glo
   if nargin < 6
     global_precond_type = "jacobi";
   else
-    if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
+    if ~ismember(global_precond_type, ["jacobi", "mass_inv", "ilu"])
       fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
       return;
     end

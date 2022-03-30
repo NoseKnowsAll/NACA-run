@@ -5,7 +5,7 @@ function naca_subiteration_driver(dt, tol, nsubiter, subtol_factor, global_preco
   if nargin < 5
     global_precond_type = "jacobi";
   else
-    if ~ismember(global_precond_type, ["jacobi", "mass_inv"])
+    if ~ismember(global_precond_type, ["jacobi", "mass_inv", "ilu"])
       fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
       return;
     end

@@ -8,13 +8,31 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
     precond_global = init_jacobi(diagA);
   elseif global_precond_type == "mass_inv"
     precond_global = init_jacobi(Ms);
+  elseif global_precond_type == "ilu"
+    precond_global = init_ilu(diagA, A);
   else
     error("Invalid global_precond_type");
   end
 
   adaptive_factors = compute_adaptive_factors(Ms, bl_elems);
 
-  [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
+  if isa(A, 'function_handle')
+    [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
+  else
+    [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems);
+    if 0
+      % TODO: test submatrix works
+      x_bl = randn(nlocal*numel(bl_elems),1);
+      x = pad_subvector(x_bl, nt, nlocal, bl_elems);
+      rhs = A*x;
+      rhs_bl  = extract_subvector(rhs, nt, nlocal, bl_elems);
+      rhs_bl2 = A_bl*x_bl;
+      disp(norm(rhs_bl));
+      disp(norm(rhs_bl2));
+      disp(norm(rhs_bl-rhs_bl2));
+      error("Debugging!");
+    end
+  end
   
   precond_bl = init_jacobi(diagA_bl);
   precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, adaptive_factors, bl_elems, nt, nlocal, rhs);
@@ -97,7 +115,7 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   
 end
 
-% Extract portion of operator A corresponding to rows specified by bl_elems
+% Extract portion of operator A corresponding to blocks of rows/cols specified by bl_elems
 function [A_bl, diagA_bl] = extract_suboperator(Atimes, diagA, bl_elems)
   A_bl = @(x_bl) evaluate_suboperator(Atimes, diagA, bl_elems, x_bl);
   diagA_bl = diagA(:,:,bl_elems);
@@ -106,11 +124,45 @@ end
 % Evaluates rhs_bl = A_bl*x_bl, when x is a subvector
 function rhs_bl = evaluate_suboperator(Atimes, diagA, bl_elems, x_bl)
   nt = size(diagA,3);
-  nlocal = size(diagA,2);
+  nlocal = size(diagA,1);
 
   x = pad_subvector(x_bl, nt, nlocal, bl_elems);
   rhs = Atimes(x);
   rhs_bl = extract_subvector(rhs, nt, nlocal, bl_elems);
+end
+
+% Extract portion of matrix A corresponding to blocks of rows/cols specified by bl_elems
+function [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems)
+  nt = size(diagA,3);
+  nlocal = size(diagA,1);
+  starts  = repmat((bl_elems.'-1).*nlocal, nlocal,1);
+  offsets = repmat(uint64(1:nlocal).', 1, numel(bl_elems));
+  rows = reshape(starts + offsets, [],1);
+  inv_perm(rows) = 1:numel(rows);
+  tic; A_bl = A(rows, rows); toc
+  %tic;
+  %[Ai, Aj, Av] = find(A);
+  %toc
+  %tic
+  %ii_cells = arrayfun(@(x) find(Ai==x), rows, 'UniformOutput', false);
+  %toc
+  %ii = vertcat(ii_cells{:});
+  %tic
+  %ij_cells = arrayfun(@(x) find(Aj(ii)==x), rows, 'UniformOutput', false);
+  %toc
+  %ij = vertcat(ij_cells{:});
+  %tic
+  %Ai_bl = Ai(ii);
+  %Aj_bl = Aj(ii);
+  %Av_bl = Av(ii);
+  %Ai_bl = Ai_bl(ij);
+  %Aj_bl = Aj_bl(ij);
+  %Av_bl = Av_bl(ij);
+  %Ai_bl = inv_perm(Ai_bl);
+  %Aj_bl = inv_perm(Aj_bl);
+  %A_bl = sparse(Ai_bl, Aj_bl, Av_bl, numel(rows), numel(rows));
+  %toc
+  diagA_bl = diagA(:,:,bl_elems);
 end
 
 % Given a global vector x, return the portion of the vector corresponding
@@ -124,9 +176,7 @@ end
 % Given a subvector x_bl, return a padded, global vector where
 % x=x_bl for all the elements specified by bl_elems, and x=pad_val for all others
 function x = pad_subvector(x_bl, nt, nlocal, bl_elems, pad_val)
-  if nargin < 5
-    pad_val = 0;
-  end
+  if nargin < 5; pad_val = 0; end;
 
   x_bl_shape = reshape(x_bl, nlocal, length(bl_elems));
   if pad_val == 0

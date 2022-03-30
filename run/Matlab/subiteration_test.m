@@ -7,11 +7,19 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
 
   if divide_by_dt
     % For testing MFEM: should be mfem_time_dependent_jacobian
-    Atimes = @(x)mfem_time_dependent_jacobian(J, Ms, dt, x);
+    if global_precond_type == "ilu"
+      Atimes = mfem_assemble_time_dependent_jacobian(J, Ms, dt);
+    else
+      Atimes = @(x)mfem_time_dependent_jacobian(J, Ms, dt, x);
+    end
     diagA = Ms/dt - JD;
   else
     % For testing 3DG: do not divide by dt
-    Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
+    if global_precond_type == "ilu"
+      Atimes = assemble_time_dependent_jacobian(J, Ms, dt);
+    else
+      Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
+    end
     diagA = Ms-dt*JD;
   end
 
@@ -41,7 +49,11 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
     fprintf("inner iterations: %d\n", inner_iterations);
   end
   fprintf("time: %6.2f\n", fgmres_timer);
-  fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
+  if isa(Atimes, 'function_handle')
+    fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
+  else
+    fprintf("||Ax-b|| = %f\n", norm(Atimes*x-b));
+  end
   
 end
 
