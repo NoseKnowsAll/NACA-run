@@ -20,18 +20,6 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
     [A_bl, diagA_bl] = extract_suboperator(A, diagA, bl_elems);
   else
     [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems);
-    if 0
-      % TODO: test submatrix works
-      x_bl = randn(nlocal*numel(bl_elems),1);
-      x = pad_subvector(x_bl, nt, nlocal, bl_elems);
-      rhs = A*x;
-      rhs_bl  = extract_subvector(rhs, nt, nlocal, bl_elems);
-      rhs_bl2 = A_bl*x_bl;
-      disp(norm(rhs_bl));
-      disp(norm(rhs_bl2));
-      disp(norm(rhs_bl-rhs_bl2));
-      error("Debugging!");
-    end
   end
   
   precond_bl = init_jacobi(diagA_bl);
@@ -138,30 +126,8 @@ function [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems)
   starts  = repmat((bl_elems.'-1).*nlocal, nlocal,1);
   offsets = repmat(uint64(1:nlocal).', 1, numel(bl_elems));
   rows = reshape(starts + offsets, [],1);
-  inv_perm(rows) = 1:numel(rows);
   tic; A_bl = A(rows, rows); toc
-  %tic;
-  %[Ai, Aj, Av] = find(A);
-  %toc
-  %tic
-  %ii_cells = arrayfun(@(x) find(Ai==x), rows, 'UniformOutput', false);
-  %toc
-  %ii = vertcat(ii_cells{:});
-  %tic
-  %ij_cells = arrayfun(@(x) find(Aj(ii)==x), rows, 'UniformOutput', false);
-  %toc
-  %ij = vertcat(ij_cells{:});
-  %tic
-  %Ai_bl = Ai(ii);
-  %Aj_bl = Aj(ii);
-  %Av_bl = Av(ii);
-  %Ai_bl = Ai_bl(ij);
-  %Aj_bl = Aj_bl(ij);
-  %Av_bl = Av_bl(ij);
-  %Ai_bl = inv_perm(Ai_bl);
-  %Aj_bl = inv_perm(Aj_bl);
-  %A_bl = sparse(Ai_bl, Aj_bl, Av_bl, numel(rows), numel(rows));
-  %toc
+
   diagA_bl = diagA(:,:,bl_elems);
 end
 
