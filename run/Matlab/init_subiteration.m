@@ -7,7 +7,7 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   if global_precond_type == "jacobi"
     precond_global = init_jacobi(diagA);
   elseif global_precond_type == "mass_inv"
-    precond_global = init_jacobi(Ms);
+    precond_global = init_mass_inv(Ms);
   elseif global_precond_type == "ilu"
     precond_global = init_ilu(diagA, A);
   else
