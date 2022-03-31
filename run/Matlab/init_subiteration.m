@@ -2,7 +2,7 @@
 function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor)
   nt = size(diagA,3);
   nlocal = size(diagA,2);
-  fprintf("Subiteration preconditioner with nsubiter=%d, nt=%d, size(bl_elems)=%d\n", nsubiter, nt, length(bl_elems));
+  fprintf("Subiteration preconditioner with precond=%s, nsubiter=%d, nt=%d, size(bl_elems)=%d\n", global_precond_type, nsubiter, nt, length(bl_elems));
 
   if global_precond_type == "jacobi"
     precond_global = init_jacobi(diagA);
@@ -121,12 +121,11 @@ end
 
 % Extract portion of matrix A corresponding to blocks of rows/cols specified by bl_elems
 function [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems)
-  nt = size(diagA,3);
   nlocal = size(diagA,1);
   starts  = repmat((bl_elems.'-1).*nlocal, nlocal,1);
   offsets = repmat(uint64(1:nlocal).', 1, numel(bl_elems));
   rows = reshape(starts + offsets, [],1);
-  tic; A_bl = A(rows, rows); toc
+  A_bl = A(rows, rows);
 
   diagA_bl = diagA(:,:,bl_elems);
 end

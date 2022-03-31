@@ -26,6 +26,9 @@ function subiteration_driver(dt, tol, nsubiter, subtol_factor, global_precond_ty
 
   fprintf("Running subiteration_driver(dt=%.1e) on mesh %s, nsubiter=%d.\n", dt, msh_name, nsubiter);
 
+  msh = h5freadstruct(msh_file);
+  global t2t;
+  t2t = msh.t2t + 1; % C++ is 0-indexed
   J   = freadjac(results_dir);
   Ms  = freadarray(mass_dir+"Dv.mat");
   JD  = freadarray(results_dir+"Dv.mat");

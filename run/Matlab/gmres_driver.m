@@ -8,7 +8,9 @@ function gmres_driver()
   mass_dir = results_dir+"mass/";
   dt  = 1e-3;
 
-  %msh = h5freadstruct(msh_file);
+  msh = h5freadstruct(msh_file);
+  global t2t;
+  t2t = msh.t2t + 1; % C++ is 0-indexed
   J   = freadjac(results_dir);
   JD  = freadarray(results_dir+"Dv.mat");
   Ms  = freadarray(mass_dir+"Dv.mat");

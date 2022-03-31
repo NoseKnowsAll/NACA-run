@@ -23,19 +23,13 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
     diagA = Ms-dt*JD;
   end
 
-  %fprintf("Working on condition number...\n");
-  %sparseA = construct_sparse_matrix(diagA, Dij);
-  %disp(cond(full(sparseA)));
-  %return;
-
+  t_start = tic;
   precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor);
-  %precond = init_jacobi(diagA);
-  %precond = init_mass_inv(Ms);
-  %precond = @(x) x;
-
+  ass_timer = toc(t_start);
+  fprintf("GMRES initialization time: %6.2f\n", ass_timer);
+  
   maxiter = 500;
   restart = 500;
-  fprintf("GMRES initialized successfully\n");
   t_start = tic;
 
   %[x, iter, residuals] = static_gmres(Atimes, b, [], tol, maxiter, precond, "flexible", true);
@@ -48,7 +42,7 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
   if inner_iterations > 0
     fprintf("inner iterations: %d\n", inner_iterations);
   end
-  fprintf("time: %6.2f\n", fgmres_timer);
+  fprintf("solve time: %6.2f\n", fgmres_timer);
   if isa(Atimes, 'function_handle')
     fprintf("||Ax-b|| = %f\n", norm(Atimes(x)-b));
   else

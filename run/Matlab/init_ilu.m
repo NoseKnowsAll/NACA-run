@@ -7,63 +7,64 @@ function precond = init_ilu(diagA, A)
   
   nlocal = size(diagA,1);
   nt = size(diagA,3);
+  Dinvs = cell(nt,1); % used for storing LU factorizations of block diagonal
+  b = create_blocks(nlocal, nt);
 
-  % LU Factorization of block diagonal
-  
-  Dinvs = cell(nt,1);
-  % TODO: Not sure if this is ever directly used...
-  %for it = 1:nt
-  %  Dinvs{it} = decomposition(diagA(:,:,it), 'lu');
-  %end
-
-  t2t = recreate_t2t(A, nlocal, nt);
+  global t2t;
+  % The below method is extremely costly
+  %t2t = recreate_t2t(A, b, nlocal, nt)
   nf = size(t2t,1);
   
   AILU = A;
   for it = 1:nt
-    [i1,in] = block(it,nlocal);
+    i1 = b(1,it); in = b(2,it);
     
     % Find all nonzeros to the left of diagonal in row i
-    for kt = t2t(:,it)
-      if kt < it
-	[k1,kn] = block(kt, nlocal);
+    for kk = 1:nf
+      kt = t2t(kk,it);
+      if kt > 0 && kt < it
+	k1 = b(1,kt); kn = b(2,kt);
 	% Right solve A_ik = A_ik * A_kk^{-1}
-	AILU(i1:in,k1:kn) = AILU(i1:in,k1:kn)/Dinvs{ik};
+	AILU(i1:in,k1:kn) = AILU(i1:in,k1:kn)/Dinvs{kt};
 	
 	% Modify everything to the right of k in row i
-	for jt = t2t(:,it)
-	  if jt > kt
-	    [j1,jn] = block(jt, nlocal);
+	for jj = 1:nf
+	  jt = t2t(jj,it);
+	  if jt > 0 && jt > kt
+	    j1 = b(1,jt); jn = b(2,jt);
 
 	    AILU(i1:in,j1:jn) = AILU(i1:in,j1:jn) - AILU(i1:in,k1:kn)*AILU(k1:kn,j1:jn);
 	  end
 	end
         % Including diagonal (which is also to the right of k in row i)
 	AILU(i1:in,i1:in) = AILU(i1:in,i1:in) - AILU(i1:in,k1:kn)*AILU(k1:kn,i1:in);
-	% Compute new decomposition for use in all following operations
-	Dinvs{it} = decomposition(AILU(i1:in,i1:in), 'lu');
       end
     end
+    
+    % Compute new decomposition for use in all following operations
+    Dinvs{it} = decomposition(AILU(i1:in,i1:in), 'lu');
   end
   
   % U\L\rhs
-  precond = @(rhs) evaluate_ilu(Dinvs, AILU, rhs);
+  precond = @(rhs) evaluate_ilu(Dinvs, AILU, t2t, b, rhs);
 end
 
 % Evaluate U\(L\rhs) stored in AILU
-function x = evaluate_ilu(Dinvs, AILU, t2t, rhs)
+function x = evaluate_ilu(Dinvs, AILU, t2t, b, rhs)
   nt = size(Dinvs,1);
   nlocal = Dinvs{1}.MatrixSize(2);
+  nf = size(t2t,1);
 
   rhs_shape = reshape(rhs, nlocal,nt);
   y_shape = zeros(nlocal, nt);
   % Forward solve Ly = rhs where L has implicit identity on diagonal
   for it = 1:nt
-    [i1,in] = block(it, nlocal);
+    i1 = b(1,it); in = b(2,it);
     y_shape(:,it) = rhs_shape(:,it);
-    for jt = t2t(:,it)
-      if jt < it
-	[j1,jn] = block(jt, nlocal);
+    for jj = 1:nf
+      jt = t2t(jj,it);
+      if jt > 0 && jt < it
+	j1 = b(1,jt); jn = b(2,jt);
 	y_shape(:,it) = y_shape(:,it) - AILU(i1:in,j1:jn)*y_shape(:,jt);
       end
     end
@@ -72,10 +73,11 @@ function x = evaluate_ilu(Dinvs, AILU, t2t, rhs)
   x_shape = y_shape;
   % Backward substitution to solve Ux = y
   for it = nt:-1:1
-    [i1,in] = block(it, nlocal);
-    for jt = t2t(:,it)
-      if jt > it
-	[j1,jn] = block(jt, nlocal);
+    i1 = b(1,it); in = b(2,it);
+    for jj = 1:nf
+      jt = t2t(jj,it);
+      if jt > 0 && jt > it
+	j1 = b(1,jt); jn = b(2,jt);
 	x_shape(:,it) = x_shape(:,it) - AILU(i1:in,j1:jn)*x_shape(:,jt);
       end
     end
@@ -85,24 +87,31 @@ function x = evaluate_ilu(Dinvs, AILU, t2t, rhs)
 end
 
 % Recreate the element to element array from the nnz of the matrix itself
-function t2t = recreate_t2t(A, nlocal, nt)
+function t2t = recreate_t2t(A, b, nlocal, nt)
   nf = 4; % TODO: Figure this out programmatically
   t2t = zeros(nf,nt);
   for it = 1:nt
-    [i1,in] = block(it, nlocal);
+    i1 = b(1,it); in = b(2,it);
     iF = 0;
     for jt = 1:nt
       if jt == it
 	continue;
       end
-      [j1, jn] = block(jt, nlocal);
-      A_ij = A(i1:in, j1:jn);
+      j1 = b(1,jt); jn = b(2,jt);
 
-      if nnz(A_ij) > 0
+      if nnz(A(i1:in, j1:jn)) > 0
 	iF = iF + 1;
 	t2t(iF,it) = jt;
       end
     end
+  end
+end
+
+% Offset array to return the rows of matrix corresponding to element it
+function blocks = create_blocks(nlocal, nt)
+  blocks = zeros(2,nt);
+  for it = 1:nt
+    [blocks(1,it),blocks(2,it)] = block(it, nlocal);
   end
 end
 

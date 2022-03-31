@@ -56,6 +56,8 @@ end
 
 function [J, Ms, JD, Dij, b] = mfem_extract_matrices(A, M, b, msh_file, mfem_dt)
   msh = h5freadstruct(msh_file);
+  global t2t;
+  t2t = msh.t2t + 1; % C++ is 0-indexed
   nt = size(msh.p1,3);
   nlocal = size(msh.p1,1);
   
