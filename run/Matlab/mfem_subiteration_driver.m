@@ -1,8 +1,9 @@
 % From a set of matrices saved by Will's MFEM code, solve Ax=b with FGMRES preconditioned with subiteration
-function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx, variable)
+function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx, r, variable)
 
-  if nargin < 10; variable = false; end;
-  if nargin < 9; Lx = 1; end;
+  if nargin < 11; variable = false; end;
+  if nargin < 10; r = -1; end;
+  if nargin < 9; Lx = -1; end;
   if nargin < 8; p = 3; end;
   if nargin < 7; h = 1e-3; end;
   if nargin < 6
@@ -19,11 +20,10 @@ function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, glo
   if nargin < 2; dt = 1e-3; end;
   if nargin < 1; mfem_dt = 1e-3; end
 
-  if Lx == -1
-    msh_name = sprintf("aniso_p%d_h%.0e", p, h);
-  else
-    msh_name = sprintf("aniso_p%d_h%.0e_Lx%d", p, h, Lx);
-  end
+  msh_name = sprintf("aniso_p%d_h%.0e", p, h);
+  if Lx ~= -1; msh_name = sprintf("%s_Lx%d", msh_name, Lx); end;
+  if r ~= -1;  msh_name = sprintf("%s_r%d",  msh_name, r); end;
+  
   wr_dir = "/scratch/mfranco/2021/wr-les-solvers/";
   msh_dir = wr_dir+"meshes/";
   bl_file = msh_dir+msh_name+"bl.mat";

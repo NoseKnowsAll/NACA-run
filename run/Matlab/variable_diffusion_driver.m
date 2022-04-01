@@ -4,7 +4,7 @@ function errors = variable_diffusion_driver(maxiter, dir)
   if nargin < 2; dir = "/scratch/mfranco/2021/naca/run/results/Matlab/"; end;
   if nargin < 3; msh_file = "/scratch/mfranco/2021/wr-les-solvers/meshes/aniso_p3_h1e-01.h5"; end;
 
-  msh = h5freadstruct(msh_file);
+  %msh = h5freadstruct(msh_file);
   attr = cell(5,1); % Hardcode the attributes for this mesh
   attr{1} = 1:106;
   attr{2} = 107:120;
