@@ -8,13 +8,15 @@ results_dir = "/scratch/mfranco/2021/naca/run/results/"+msh_name+"/";
 mass_dir = results_dir+"mass/";
 
 msh = h5freadstruct(msh_file);
-J_nonbl = init_jac_nonbl(msh, results_dir, bl_file);
+%J_nonbl = init_jac_nonbl(msh, results_dir, bl_file);
+J = freadjac(results_dir);
 Ms = freadarray(mass_dir+"Dv.mat");
 %M_total = freadjac(mass_dir);
 %figure(2);
 %spy(M_total);
 %return;
-explore_eigenvalues(J_nonbl, Ms, msh_name);
+%explore_eigenvalues(J_nonbl, Ms, msh_name);
+explore_eigenvalues(J, Ms, msh_name);
 
 % Evaluate ( M\otimes I ) \ J * x
 function y = eval_matrix(J, M, x)
