@@ -18,7 +18,7 @@ const double      Re       = 9.0*order/(hwing/(1<<refine)); // Because h/p = 10/
 const double      M0       = 0.25;
 const double      AoAdeg   = 0.0;
 const double      dt       = 1e-3;
-const int         step0    = 10000;   // Must have a precomputed solution at this time step to begin
+const int         step0    = 20000;   // Must have a precomputed solution at this time step to begin
 
 void linassemble(jacarray& Ddrdu,jacarray &Odrdu, jacarray& DJ,jacarray& OJ, darray& r,
 		 appl& a,mesh& msh,data& d,phys& p, const darray& u,double dt);
