@@ -1,15 +1,23 @@
 % From a set of matrices saved by Will's MFEM code, solve Ax=b with FGMRES preconditioned with subiteration
-function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx, r, variable)
+function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, global_pre, inner_pre, h, p, Lx, r, variable)
 
-  if nargin < 11; variable = false; end;
-  if nargin < 10; r = -1; end;
-  if nargin < 9; Lx = -1; end;
-  if nargin < 8; p = 3; end;
-  if nargin < 7; h = 1e-3; end;
-  if nargin < 6
-    global_precond_type = "jacobi";
+  if nargin < 12; variable = false; end;
+  if nargin < 11; r = -1; end;
+  if nargin < 10; Lx = -1; end;
+  if nargin < 9; p = 3; end;
+  if nargin < 8; h = 1e-3; end;
+  if nargin < 7
+    inner_pre = "jacobi"
   else
-    if ~ismember(global_precond_type, ["jacobi", "mass_inv", "ilu"])
+    if ~ismember(inner_pre, ["jacobi", "mass_inv", "ilu"])
+      fprintf("ERROR: inner preconditioner type not one of the acceptable types!\n");
+      return;
+    end
+  end
+  if nargin < 6
+    global_pre = "jacobi";
+  else
+    if ~ismember(global_pre, ["jacobi", "mass_inv", "ilu"])
       fprintf("ERROR: global preconditioner type not one of the acceptable types!\n");
       return;
     end
@@ -50,7 +58,7 @@ function mfem_subiteration_driver(mfem_dt, dt, tol, nsubiter, subtol_factor, glo
   %test_matvec(Atimes, b, mass_dir);
   %return;
 
-  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type, true);
+  subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_pre, inner_pre, true);
   
 end
 

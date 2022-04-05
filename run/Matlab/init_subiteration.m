@@ -1,17 +1,17 @@
 % Creates a subiteration preconditioner to solve A\b
-function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor)
+function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_pre, inner_pre, tol, nsubiter, subtol_factor)
   nt = size(diagA,3);
   nlocal = size(diagA,2);
-  fprintf("Subiteration preconditioner with precond=%s, nsubiter=%d, nt=%d, size(bl_elems)=%d\n", global_precond_type, nsubiter, nt, length(bl_elems));
+  fprintf("Subiteration preconditioner with global_pre=%s, inner_pre=%s, nsubiter=%d, nt=%d, size(bl_elems)=%d\n", global_pre, inner_pre, nsubiter, nt, length(bl_elems));
 
-  if global_precond_type == "jacobi"
+  if global_pre == "jacobi"
     precond_global = init_jacobi(diagA);
-  elseif global_precond_type == "mass_inv"
+  elseif global_pre == "mass_inv"
     precond_global = init_mass_inv(Ms);
-  elseif global_precond_type == "ilu"
+  elseif global_pre == "ilu"
     precond_global = init_ilu(diagA, A);
   else
-    error("Invalid global_precond_type");
+    error("Invalid global_pre");
   end
 
   adaptive_factors = compute_adaptive_factors(Ms, bl_elems);
@@ -21,8 +21,20 @@ function precond = init_subiteration(A, diagA, Ms, bl_elems, b, global_precond_t
   else
     [A_bl, diagA_bl] = extract_submatrix(A, diagA, bl_elems);
   end
-  
-  precond_bl = init_jacobi(diagA_bl);
+
+  if nsubiter <= 0
+    precond_bl = false;
+  else
+    if inner_pre == "jacobi"
+      precond_bl = init_jacobi(diagA_bl);
+    elseif inner_pre == "mass_inv"
+      precond_bl = init_mass_inv(Ms(:,:,bl_elems));
+    elseif inner_pre == "ilu"
+      precond_bl = init_ilu(diagA_bl, A_bl, bl_elems);
+    else
+      error("Invalid inner_pre");
+    end
+  end
   precond = @(rhs) evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl, tol, nsubiter, subtol_factor, adaptive_factors, bl_elems, nt, nlocal, rhs);
   
   global outer_iteration;
@@ -55,15 +67,6 @@ function x = evaluate_subiteration(A, A_bl, diagA_bl, precond_global, precond_bl
   else
     r = rhs - A*x;
   end
-
-  %TODO: Debugging
-  %scaled_err = precond_global(r);
-  %iter = num2str(outer_iteration, "%03.f");
-  %res_file = sprintf("../results/Matlab/residual_it%s.mat", iter);
-  %fwritearray(res_file, r);
-  
-  %scaled_err_file = sprintf("../results/Matlab/scaled_error_it%s.mat", iter);
-  %fwritearray(scaled_err_file, scaled_err);
   
   r_bl = extract_subvector(r, nt, nlocal, bl_elems);
   x_bl = extract_subvector(x, nt, nlocal, bl_elems);

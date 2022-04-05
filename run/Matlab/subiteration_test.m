@@ -1,5 +1,5 @@
 % Now that information is initialized, actually test FGMRES preconditioned by subiterations
-function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_precond_type, divide_by_dt)
+function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subtol_factor, global_pre, inner_pre, local_divide_by_dt)
 
   if ~exist('divide_by_dt','var')
     divide_by_dt = false; % Assume working with 3DG matrices
@@ -7,7 +7,7 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
 
   if divide_by_dt
     % For testing MFEM: should be mfem_time_dependent_jacobian
-    if global_precond_type == "ilu"
+    if global_pre == "ilu" || inner_pre == "ilu"
       Atimes = mfem_assemble_time_dependent_jacobian(J, Ms, dt);
     else
       Atimes = @(x)mfem_time_dependent_jacobian(J, Ms, dt, x);
@@ -15,7 +15,7 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
     diagA = Ms/dt - JD;
   else
     % For testing 3DG: do not divide by dt
-    if global_precond_type == "ilu"
+    if global_pre == "ilu" || inner_pre == "ilu"
       Atimes = assemble_time_dependent_jacobian(J, Ms, dt);
     else
       Atimes = @(x)time_dependent_jacobian(J, Ms, dt, x);
@@ -24,7 +24,7 @@ function subiteration_test(J, Ms, JD, Dij, b, bl_elems, dt, tol, nsubiter, subto
   end
 
   t_start = tic;
-  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_precond_type, tol, nsubiter, subtol_factor);
+  precond = init_subiteration(Atimes, diagA, Ms, bl_elems, b, global_pre, inner_pre, tol, nsubiter, subtol_factor);
   ass_timer = toc(t_start);
   fprintf("GMRES initialization time: %6.2f\n", ass_timer);
   

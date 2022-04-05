@@ -14,14 +14,15 @@ function mfem_performance_analysis(run_tests, plot_tests, results_file)
 
   if run_tests
     % Run tests - expensive
-    global_precond_type = "jacobi";
+    global_pre = "jacobi";
+    inner_pre = "jacobi";
     h = 1e-3;
     p = 3;
     tol = 1e-8;
     dts = [1e-3];
-    Lxs = 2:2:10;
-    subtol_factors = [1e-1 1e0 1e1];
-    nsubiters = [10 20 30 40 100];
+    Lxs = [1];
+    subtol_factors = [1e0];
+    nsubiters = [0 100];
     performance = zeros(length(nsubiters), length(subtol_factors), length(dts), length(Lxs), 4);
 
     for ilx = 1:length(Lxs)
@@ -36,7 +37,7 @@ function mfem_performance_analysis(run_tests, plot_tests, results_file)
 	  for ins = 1:length(nsubiters)
 	    nsubiter = nsubiters(ins);
 
-	    mfem_subiteration_driver(dt, dt, tol, nsubiter, subtol_factor, global_precond_type, h, p, Lx);
+	    mfem_subiteration_driver(dt, dt, tol, nsubiter, subtol_factor, global_pre, inner_pre, h, p, Lx);
 	    
 	    global inner_iterations;
 	    global outer_iteration;
@@ -108,7 +109,7 @@ function mfem_performance_analysis(run_tests, plot_tests, results_file)
 end
 
 % Computes the cost of a subiteration solve in terms of global matvecs
-% cost = n_element*n_local^2 * (2*it_outer + 2*percent_subregion*it_inner)
+% cost = n_element*n_local^2 * ((2+1/4)*it_outer + (1+1/4)*percent_subregion*it_inner)
 % it_outer is the global number of outer iterations
 % it_inner is the total number of inner iterations across all outer iterations
 % percent subregion = n_elements / n_elements_in_subregion
@@ -116,5 +117,5 @@ function cost = cost_in_matvecs(it_inner, it_outer, percent_subregion)
   % OLD COMPUTATION
   %cost = 3*it_outer + 2*percent_subregion*it_inner;
   % One less matvec in outer iteration because we now directly use residual, not preconditioned residual
-  cost = 2*it_outer + 2*percent_subregion*it_inner;
+  cost = (2+1/4)*it_outer + (1+1/4)*percent_subregion*it_inner;
 end
